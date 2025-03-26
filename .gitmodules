@@ -1,0 +1,3 @@
+[submodule "external/Masharif"]
+	path = external/Masharif
+	url = https://github.com/alielmorsy/Masharif.git
