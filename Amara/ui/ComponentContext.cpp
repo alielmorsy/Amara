@@ -11,7 +11,7 @@ std::tuple<StateWrapper *, SetStateFunction> ComponentContext::useState(std::uni
                                                                         EmptyFunction notifier) {
     StateWrapper *wrapper;
     size_t currentIndex;
-    if (insideReconciliation) {
+    if (_reconciliationStarted) {
         State &state = states[hookCount];
         wrapper = state.object.get();
         currentIndex = hookCount++;
@@ -42,7 +42,10 @@ std::tuple<StateWrapper *, SetStateFunction> ComponentContext::useState(std::uni
 void ComponentContext::effect(StateWrapperRef fn, std::vector<StateWrapperRef> deps) {
     if (_reconciliationStarted) {
         ScopedTimer timer;
-        fn->call();
+        if (!deps.empty()) {
+            fn->call();
+        }
+
         return;
     }
     //The initial register call
@@ -118,15 +121,15 @@ void ComponentContext::reconcileList(const SharedWidget &listHolder,
         // Reconcile new items
         for (int i = 0; i < newSize; ++i) {
             const auto val = arr->getValue(i);
-            auto result = func->call(val->getValue());
+            auto result = func->call(val->getValue(), Value(i));
             auto newWidgetHolder = engine->getWidgetHolder(result);
             auto newKey = newWidgetHolder->key();
 
             SharedWidget widget;
             if (newKey.hasKey() && existingChildren.count(newKey.key)) {
-                // Reuse existing widget with this key
+                // Reuse the existing widget with this key
                 widget = existingChildren[newKey.key];
-                this->reconcileObject(widget, std::move(newWidgetHolder));
+                widget = this->reconcileObject(widget, std::move(newWidgetHolder));
                 usedKeys.insert(newKey.key);
             } else {
                 // Create new widget
@@ -153,11 +156,17 @@ std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<
                                                           std::unique_ptr<WidgetHolder> newCaller) {
     ScopedTimer timer;
     auto &subComponent = old->component();
+    subComponent->_reconciliationStarted = true;
     //To make the new state
     subComponent->_updateStates();
     //The perfect case.
     if (!old->is<ContainerWidget>()) {
-        return newCaller->execute(engine);
+        engine->plugComponent(
+            subComponent);
+        auto result = newCaller->execute(engine);
+        engine->unplugComponent();
+        subComponent->_reconciliationStarted = false;
+        return result;
     }
     auto oldContainer = old->as<ContainerWidget>();
 

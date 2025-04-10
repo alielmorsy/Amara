@@ -82,7 +82,7 @@ Value HermesEngine::useStateImpl(const Value &value) {
     auto &context = contextStack.top();
 
     auto [stateValue, func] = context->useState(std::move(wrapper), [this, context=std::shared_ptr(context)]() {
-        componentsToBeUpdated.emplace_back(context);
+        nextIterationComponents.emplace_back(context);
     });
 
 
@@ -136,20 +136,26 @@ void HermesEngine::render(const Value &value) {
 
     rootWidget = std::move(result.asObject(rt).asHostObject<WidgetHostWrapper>(rt)->getNativeWidget());
 
-    std::sort(componentsToBeUpdated.begin(), componentsToBeUpdated.end(),
-              [](const std::shared_ptr<ComponentContext> &first, const std::shared_ptr<ComponentContext> &second) {
-                  return first->index() < second->index();
-              });
+
+    componentsToBeUpdated.insert(componentsToBeUpdated.end(), nextIterationComponents.begin(),
+                                 nextIterationComponents.end());
     for (int i = 0; i < 3; i++) {
         if (!componentsToBeUpdated.empty()) {
             rootWidget->printTree();
         }
+        std::sort(componentsToBeUpdated.begin(), componentsToBeUpdated.end(),
+                  [](const std::shared_ptr<ComponentContext> &first, const std::shared_ptr<ComponentContext> &second) {
+                      return first->index() < second->index();
+                  });
         for (auto &c: componentsToBeUpdated) {
             c->update();
         }
+        componentsToBeUpdated.clear();
+        componentsToBeUpdated.insert(componentsToBeUpdated.end(), nextIterationComponents.begin(),
+                                     nextIterationComponents.end());
 
+        nextIterationComponents.clear();
     }
-
     rootWidget->printTree();
 }
 
@@ -169,7 +175,7 @@ void HermesEngine::pushExistingComponent(const std::shared_ptr<ComponentContext>
 
 void HermesEngine::listConciliar(const shared_ptr<WidgetHostWrapper> &widgetWrapper, Value arr, Value func) {
     auto widget = widgetWrapper->getNativeWidget();
-    if (arr.asObject(*runtime).hasProperty(*runtime, "_isStateVariable")) {
+    if (!arr.asObject(*runtime).getProperty(*runtime, "_isStateVariable").isUndefined()) {
         arr = arr.asObject(*runtime).getProperty(*runtime, "value");
     }
     //It's okay if the component still there, but this is very important for the cases where we reconcile without recreating the component
@@ -301,7 +307,7 @@ HermesEngine::~HermesEngine() {
     while (!contextStack.empty()) contextStack.pop();
     pool.finished = true;
     rootWidget.reset();
-
+    nextIterationComponents.clear();
     componentsToBeUpdated.clear();
     runtime.reset();
 }

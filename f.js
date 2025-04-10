@@ -11,7 +11,7 @@ function useMemo(fn) {
 }
 
 
-function createRef(initialValue) {
+function createRef1(initialValue) {
     const ref = function (...args) {
         if (typeof ref._value === "function") {
             return ref._value(...args);
@@ -25,6 +25,7 @@ function createRef(initialValue) {
         _value: initialValue,
 
         get value() {
+
             return this._value;
         },
 
@@ -32,7 +33,16 @@ function createRef(initialValue) {
             if (typeof newValue !== dataType) {
                 throw new TypeError(`Value type must remain ${dataType}`);
             }
-
+            this._value = newValue;
+            if (dataType === "object" && newValue !== null) {
+                Object.assign(this, newValue);
+            }
+        },
+        setValue(newValue) {
+            print("Setting Value ", newValue)
+            if (typeof newValue !== dataType) {
+                throw new TypeError(`Value type must remain ${dataType}`);
+            }
             this._value = newValue;
             if (dataType === "object" && newValue !== null) {
                 Object.assign(this, newValue);
@@ -59,6 +69,77 @@ function createRef(initialValue) {
     return ref;
 }
 
+function createRef(initialValue) {
+    const VALUE_KEY = Symbol('stateValue');
+    const container = {
+        [VALUE_KEY]: initialValue,
+        // Store primitive type info for proper coercion
+        get [Symbol.toPrimitive]() {
+            return this[VALUE_KEY][Symbol.toPrimitive];
+        }
+    };
+
+    const handler = {
+        get(target, prop, receiver) {
+            // Handle special properties
+            if (prop === 'value' || prop === '_internalValueOf') return target[VALUE_KEY];
+            if (prop === 'setValue') return (newValue) => target[VALUE_KEY] = newValue;
+            if (prop === '_isStateVariable') return () => true;
+
+            // Handle value coercion
+            if (prop === Symbol.toPrimitive) {
+                const val = target[VALUE_KEY];
+                return val[Symbol.toPrimitive] || function (hint) {
+                    return hint === 'string' ? String(val) : Number(val);
+                };
+            }
+
+            // Access actual value's properties
+            const currentValue = target[VALUE_KEY];
+            const valueObj = (typeof currentValue === 'object' && currentValue !== null)
+                ? currentValue
+                : Object(currentValue);
+
+            const value = Reflect.get(valueObj, prop, receiver);
+            return typeof value === 'function' ? value.bind(valueObj) : value;
+        },
+
+        set(target, prop, value, receiver) {
+            // Forward property sets to the actual value
+            if (typeof target[VALUE_KEY] === 'object' && target[VALUE_KEY] !== null) {
+                return Reflect.set(target[VALUE_KEY], prop, value, receiver);
+            }
+            throw new TypeError("Cannot set property on primitive value");
+        },
+
+        apply(target, thisArg, argumentsList) {
+            // Handle function calls
+            if (typeof target[VALUE_KEY] === 'function') {
+                return Reflect.apply(target[VALUE_KEY], thisArg, argumentsList);
+            }
+            throw new TypeError("Proxy value is not a function");
+        },
+
+        construct(target, argumentsList, newTarget) {
+            // Handle new operator
+            if (typeof target[VALUE_KEY] === 'function') {
+                return Reflect.construct(target[VALUE_KEY], argumentsList, newTarget);
+            }
+            throw new TypeError("Proxy value is not a constructor");
+        },
+
+        // Add other necessary traps
+        getPrototypeOf() {
+            return Reflect.getPrototypeOf(container[VALUE_KEY]);
+        },
+
+        has(target, prop) {
+            return Reflect.has(container[VALUE_KEY], prop);
+        }
+    };
+
+    return new Proxy(container, handler);
+}
 
 function ParentComponent() {
     beginComponentInit();
@@ -171,25 +252,58 @@ function GrandChildComponent({
 
                 return {
                     props: {
-                        children: [
-                            value
-                        ]
+                        children: [{
+                            $$internalComponent: true,
+                            component: "text",
+                            props: {
+                                children: ["Hello"]
+                            }
+                        }],
+                        name: value
                     },
-                    $$internalComponent: true,
-                    component: "text",
+                    $$internalComponent: false,
+                    component: Test,
                     key: index, //That would make accessing it easier.
 
 
                 }
             });
-
+            setNames(["Ali", "Emad", "Hassan"])
         }, [names]);
-        setNames(["Ali", "Emad", "Hassan"])
+
         _parent5.addChild(_element7);
         _parent5.addChild(_parentBase);
         endComponent();
         return _parent5;
     }
+}
+
+function Test({children, name}) {
+    beginComponentInit();
+    const [counter, setCounter] = useState(4)
+    const _parent5 = createElement("component", {});
+    effect(() => {
+        _parent5.insertChildren()
+    }, [children])
+    effect(() => {
+        const _element5 = {
+            $$internalComponent: true,
+            component: "text",
+            props: {
+                children: [
+                    name + counter
+                ]
+            },
+            id: "zUblYAq"
+        }
+
+        _parent5.insertChild("zUblYAq", _element5);
+    }, [name, counter])
+    effect(() => {
+        setCounter(7)
+    }, [])
+    endComponent();
+    return _parent5;
 }
 
 render(ParentComponent)

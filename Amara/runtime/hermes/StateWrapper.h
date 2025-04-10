@@ -23,7 +23,7 @@ public:
     }
 
     void setValue(const StateWrapperRef &newValue) const {
-        this->value.asObject(rt).setProperty(rt, "value", newValue->value);
+        this->value.asObject(rt).getProperty(rt, "setValue").asObject(rt).asFunction(rt).call(rt, newValue->value);
     }
 
     [[nodiscard]] StateWrapperRef getInternalValue() const {
@@ -48,8 +48,5 @@ public:
     [[nodiscard]] bool hasValue() const {
         return !value.isUndefined();
     }
-
-
-
 };
 #endif //WRAPPER_H

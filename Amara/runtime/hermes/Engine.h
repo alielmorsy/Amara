@@ -66,6 +66,7 @@ private:
     std::unique_ptr<Runtime> runtime;
 
     std::vector<std::shared_ptr<ComponentContext> > componentsToBeUpdated;
+    std::vector<std::shared_ptr<ComponentContext> > nextIterationComponents;
     std::shared_ptr<WidgetHostWrapper> randomWrapper;
 };
 

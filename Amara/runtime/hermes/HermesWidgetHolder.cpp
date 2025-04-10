@@ -19,8 +19,15 @@ std::shared_ptr<Widget> HermesWidgetHolder::execute(IEngine *engine) {
                 textWidget->addText(val.asString(rt).utf8(rt));
             }
         }
+        if (key().hasKey()) {
+            widget->key = key();
+        }
         return widget;
     }
     const auto result = componentFunction->asObject(rt).asFunction(rt).call(rt, *props);
-    return result.asObject(rt).asHostObject<WidgetHostWrapper>(rt)->getNativeWidget();
+    auto widget = result.asObject(rt).asHostObject<WidgetHostWrapper>(rt)->getNativeWidget();
+    if (key().hasKey()) {
+        widget->key = key();
+    }
+    return widget;
 }

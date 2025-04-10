@@ -26,6 +26,14 @@ public:
 
     virtual std::unique_ptr<WidgetHolder> getWidgetHolder(StateWrapperRef &widgetVariable) =0;
 
+    void plugComponent(const std::shared_ptr<ComponentContext>& component) {
+        contextStack.emplace(component);
+    }
+
+    virtual void unplugComponent() {
+        contextStack.pop();
+    };
+
 protected:
     SharedWidget rootWidget;
     WidgetPool pool;
