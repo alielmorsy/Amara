@@ -136,9 +136,10 @@ void HermesEngine::render(const Value &value) {
 
     rootWidget = std::move(result.asObject(rt).asHostObject<WidgetHostWrapper>(rt)->getNativeWidget());
 
-
+    //moving the edited components to next iteration component
     componentsToBeUpdated.insert(componentsToBeUpdated.end(), nextIterationComponents.begin(),
                                  nextIterationComponents.end());
+    nextIterationComponents.clear();
     for (int i = 0; i < 3; i++) {
         auto iter = new ScopedTimer("Iteration " + std::to_string(i));
         if (!componentsToBeUpdated.empty()) {

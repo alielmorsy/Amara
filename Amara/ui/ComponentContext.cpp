@@ -71,8 +71,10 @@ void ComponentContext::_updateStates() {
 }
 
 void ComponentContext::update() {
-    if (!dirty)
+    if (!dirty) {
         return;
+    }
+
 
     _updateStates();
 
@@ -175,19 +177,19 @@ std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<
             subComponent);
         auto result = newCaller->execute(engine);
         engine->unplugComponent();
-        subComponent->_reconciliationStarted = false;
         return result;
     }
     auto oldContainer = old->as<ContainerWidget>();
-
+    bool reconcilState = subComponent->_reconciliationStarted;
     subComponent->_reconciliationStarted = true;
     subComponent->reconcilingObject = oldContainer;
     engine->pushExistingComponent(subComponent);
     SharedWidget newWidget = newCaller->execute(engine);
-    subComponent->_reconciliationStarted = false;
     subComponent->reconcilingObject.reset();
     //To avoid
     subComponent->toBeUpdated.clear();
+    //There is only once case that force us to reset the reconciliation flag which is adding dyniamc children.
+    subComponent->_reconciliationStarted = reconcilState;
     subComponent->dirty = false;
     old->resetPointer();
     return newWidget;

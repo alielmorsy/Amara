@@ -292,6 +292,7 @@ function GrandChildComponent({
 function Test({children, name}) {
     beginComponentInit();
     const [counter, setCounter] = useState(4)
+    const [d, setD] = useState(4)
     const _parent5 = createElement("component", {});
     _parent5.insertChildren(children)
     effect(() => {
