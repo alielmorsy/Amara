@@ -5,6 +5,7 @@
 #include "WidgetHostWrapper.h"
 #include "HermesWidgetHolder.h"
 #include "Engine.h"
+#include "HermesArray.h"
 #include "../utils/ScopedTimer.h"
 
 Value WidgetHostWrapper::get(Runtime &runtime, const PropNameID &propName) {
@@ -38,6 +39,14 @@ Value WidgetHostWrapper::get(Runtime &runtime, const PropNameID &propName) {
             propName,
             1, [this](Runtime &rt, const Value &thisValue, const Value *args, const size_t count) {
                 return addStaticChild(rt, args, count);
+            });
+    }
+    if (name == "insertChildren") {
+        return Function::createFromHostFunction(
+            runtime,
+            propName,
+            1, [this](Runtime &rt, const Value &thisValue, const Value *args, const size_t count) {
+                return insertChildren(rt, args, count);
             });
     }
     return Value::undefined();
@@ -131,6 +140,25 @@ Value WidgetHostWrapper::insertChild(Runtime &rt, const Value *args, size_t coun
         //State variable
     }
 
+    return Value::undefined();
+}
+
+Value WidgetHostWrapper::insertChildren(Runtime &rt, const Value *args, size_t count) {
+    auto &children = args[0];
+    auto widget = nativeWidget.lock();
+    assert(widget->is<ContainerWidget>() && "Width is not a container widget");
+    auto containerWidget = widget->as<ContainerWidget>();
+    auto arr = std::make_unique<HermesArray>(rt, Value(rt, children));
+    auto emptyProps = Value();
+    std::string type = "component";
+    auto holder = engine->createComponent(type, Object(rt));
+    auto holderContainer = holder->as<ContainerWidget>();
+    for (int i = 0; i < arr->size(); ++i) {
+        auto val = arr->getValue(i);
+        auto w = engine->getWidgetHolder(val)->execute(engine);
+        holderContainer->addChild(w);
+    }
+    containerWidget->addChild(holder);
     return Value::undefined();
 }
 

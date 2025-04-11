@@ -140,8 +140,9 @@ void HermesEngine::render(const Value &value) {
     componentsToBeUpdated.insert(componentsToBeUpdated.end(), nextIterationComponents.begin(),
                                  nextIterationComponents.end());
     for (int i = 0; i < 3; i++) {
+        auto iter = new ScopedTimer("Iteration " + std::to_string(i));
         if (!componentsToBeUpdated.empty()) {
-            rootWidget->printTree();
+            //rootWidget->printTree();
         }
         std::sort(componentsToBeUpdated.begin(), componentsToBeUpdated.end(),
                   [](const std::shared_ptr<ComponentContext> &first, const std::shared_ptr<ComponentContext> &second) {
@@ -155,8 +156,9 @@ void HermesEngine::render(const Value &value) {
                                      nextIterationComponents.end());
 
         nextIterationComponents.clear();
+        delete iter;
     }
-    rootWidget->printTree();
+    //   rootWidget->printTree();
 }
 
 SharedWidget HermesEngine::findSharedWidget(StateWrapperRef &widgetVariable) {

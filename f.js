@@ -215,7 +215,17 @@ function ChildComponent({
                 $$internalComponent: false,
                 component: GrandChildComponent,
                 props: {
-                    data: doubledNumbers
+                    data: doubledNumbers,
+                    children: [
+                        {
+                            $$internalComponent: true,
+                            component: "text",
+                            props: {
+                                children: ["Came as a child"]
+
+                            }
+                        }
+                    ]
                 },
                 id: "zUblYAq"
             }
@@ -256,8 +266,9 @@ function GrandChildComponent({
                             $$internalComponent: true,
                             component: "text",
                             props: {
-                                children: ["Hello"]
-                            }
+                                children: ["Hello from internal sub component"]
+                            },
+                            id:"IDKIJUSTGOTHERE"
                         }],
                         name: value
                     },
@@ -282,9 +293,7 @@ function Test({children, name}) {
     beginComponentInit();
     const [counter, setCounter] = useState(4)
     const _parent5 = createElement("component", {});
-    effect(() => {
-        _parent5.insertChildren()
-    }, [children])
+    _parent5.insertChildren(children)
     effect(() => {
         const _element5 = {
             $$internalComponent: true,

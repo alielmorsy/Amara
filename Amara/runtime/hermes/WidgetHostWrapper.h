@@ -8,7 +8,7 @@
 #include "../../ui/Widget.h"
 #include <jsi/jsi.h>
 class HermesEngine;
-#define JSI_FUNCTION(name) Value name(Runtime &, const Value *args, size_t count)
+#define JSI_FUNCTION(name) Value name(Runtime &rt, const Value *args, size_t count)
 using namespace facebook::jsi;
 
 class WidgetHostWrapper : public HostObject {
@@ -29,6 +29,8 @@ public:
     JSI_FUNCTION(addStaticChild);
 
     JSI_FUNCTION(insertChild);
+
+    JSI_FUNCTION(insertChildren);
 
     SharedWidget getNativeWidget() const;
 

@@ -42,10 +42,20 @@ std::tuple<StateWrapper *, SetStateFunction> ComponentContext::useState(std::uni
 void ComponentContext::effect(StateWrapperRef fn, std::vector<StateWrapperRef> deps) {
     if (_reconciliationStarted) {
         ScopedTimer timer;
-        if (!deps.empty()) {
+        if (deps.empty()) {
+            return;
+        }
+        bool needRecall = false;
+        for (auto &dep: deps) {
+            for (auto &pair: toBeUpdated) {
+                if (states[pair.first].object->equals(dep.get())) {
+                    needRecall = true;
+                }
+            }
+        }
+        if (needRecall) {
             fn->call();
         }
-
         return;
     }
     //The initial register call
@@ -177,6 +187,7 @@ std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<
     subComponent->_reconciliationStarted = false;
     subComponent->reconcilingObject.reset();
     //To avoid
+    subComponent->toBeUpdated.clear();
     subComponent->dirty = false;
     old->resetPointer();
     return newWidget;
