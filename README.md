@@ -1,2 +1,2 @@
-# Lume
-Next Generation UI Framework optimized for phones
+# Amara
+Next Generation UI Framework optimized for cross-platforms
