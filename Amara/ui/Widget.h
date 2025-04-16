@@ -149,7 +149,7 @@ public:
         cout << prefix;
 
         if (!prefix.empty()) {
-            cout << (isLast ? "|----- " : "|     ");
+            cout <<  "|----- ";
         }
 
         cout << getValue() << endl;

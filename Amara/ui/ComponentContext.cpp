@@ -12,6 +12,7 @@ std::tuple<StateWrapper *, SetStateFunction> ComponentContext::useState(std::uni
     StateWrapper *wrapper;
     size_t currentIndex;
     if (_reconciliationStarted) {
+        std::cout << "Recon Hook" << hookCount << std::endl;
         State &state = states[hookCount];
         wrapper = state.object.get();
         currentIndex = hookCount++;
@@ -27,9 +28,12 @@ std::tuple<StateWrapper *, SetStateFunction> ComponentContext::useState(std::uni
             ](std::unique_ptr<StateWrapper> newValue) {
         auto &state = states[currentIndex];
         // Using the pointer directly as we cannot pass the unique pointer inside.
+        if (newValue->getValueRef().isObject()) {
+        }
         if (state.object->equals(newValue.get())) {
             return;
         }
+
         //Notify parent if needed
         notifier();
         toBeUpdated[currentIndex] = std::move(newValue);
@@ -41,21 +45,7 @@ std::tuple<StateWrapper *, SetStateFunction> ComponentContext::useState(std::uni
 
 void ComponentContext::effect(StateWrapperRef fn, std::vector<StateWrapperRef> deps) {
     if (_reconciliationStarted) {
-        ScopedTimer timer;
-        if (deps.empty()) {
-            return;
-        }
-        bool needRecall = false;
-        for (auto &dep: deps) {
-            for (auto &pair: toBeUpdated) {
-                if (states[pair.first].object->equals(dep.get())) {
-                    needRecall = true;
-                }
-            }
-        }
-        if (needRecall) {
-            fn->call();
-        }
+        fn->call();
         return;
     }
     //The initial register call
@@ -65,19 +55,26 @@ void ComponentContext::effect(StateWrapperRef fn, std::vector<StateWrapperRef> d
 }
 
 void ComponentContext::_updateStates() {
+    std::vector<size_t> keysToErase;
     for (auto &data: toBeUpdated) {
         states[data.first].object->setValue(data.second);
+        updatedStates[data.first] = std::move(data.second);
+        keysToErase.push_back(data.first);
+    }
+    for (const auto &key: keysToErase) {
+        toBeUpdated.erase(key);
     }
 }
 
 void ComponentContext::update() {
     if (!dirty) {
+        updatedStates.clear();
+        hookCount = 0;
         return;
     }
 
 
     _updateStates();
-
     for (auto &effect: effects) {
         if (effect.cleanup->hasValue()) {
             effect.cleanup->call();
@@ -86,7 +83,7 @@ void ComponentContext::update() {
         if (deps.empty()) continue;
         auto needRecall = false;
         for (auto &dep: deps) {
-            for (auto &pair: toBeUpdated) {
+            for (auto &pair: updatedStates) {
                 if (states[pair.first].object->equals(dep.get())) {
                     needRecall = true;
                 }
@@ -97,29 +94,35 @@ void ComponentContext::update() {
             effect.cleanup = std::move(result);
         }
     }
-    toBeUpdated.clear();
+    updatedStates.clear();
     dirty = false;
-    hookCount = false;
+    hookCount = 0;
 }
 
 void ComponentContext::reconcileList(const SharedWidget &listHolder,
                                      std::unique_ptr<AmaraArray> arr,
-                                     unique_ptr<StateWrapper> func) {
+                                     std::unique_ptr<StateWrapper> func) {
     auto holder = listHolder->as<ContainerWidget>();
     if (!holder->hasChildren()) {
-        // Initial render case
+        // Initial render case (unchanged)
         for (int i = 0; i < arr->size(); ++i) {
             const auto val = arr->getValue(i);
             auto result = func->call(val->getValue(), Value(i));
+            if (!result->hasValue() || (result->getValue().isBool() && !result->getValue().asBool())) {
+                continue;
+            }
             auto newWidgetHolder = engine->getWidgetHolder(result);
-            auto widget = newWidgetHolder->execute(engine);
-            holder->addChild(widget);
+            if (newWidgetHolder) {
+                // Skip if null
+                auto widget = newWidgetHolder->execute(engine);
+                holder->addChild(widget);
+            }
         }
     } else {
         auto &currentChildren = holder->children();
-        const int newSize = arr->size();
+        const size_t newSize = arr->size();
 
-        // Build map of existing children by key
+        // Build map of existing keyed widgets
         std::unordered_map<std::string, SharedWidget> existingChildren;
         for (const auto &child: currentChildren) {
             if (child->key.hasKey()) {
@@ -128,12 +131,16 @@ void ComponentContext::reconcileList(const SharedWidget &listHolder,
         }
 
         std::vector<SharedWidget> newChildren;
+        newChildren.reserve(newSize);
         unordered_set<std::string> usedKeys;
 
         // Reconcile new items
         for (int i = 0; i < newSize; ++i) {
             const auto val = arr->getValue(i);
             auto result = func->call(val->getValue(), Value(i));
+            if (!result->hasValue() || (result->getValue().isBool() && !result->getValue().asBool())) {
+                continue;
+            }
             auto newWidgetHolder = engine->getWidgetHolder(result);
             auto newKey = newWidgetHolder->key();
 
@@ -141,7 +148,10 @@ void ComponentContext::reconcileList(const SharedWidget &listHolder,
             if (newKey.hasKey() && existingChildren.count(newKey.key)) {
                 // Reuse the existing widget with this key
                 widget = existingChildren[newKey.key];
+                widget->component()->_reconciliationStarted = true;
                 widget = this->reconcileObject(widget, std::move(newWidgetHolder));
+                widget->component()->_reconciliationStarted = false;
+                widget->component()->hookCount = 0;
                 usedKeys.insert(newKey.key);
             } else {
                 // Create new widget
@@ -152,7 +162,7 @@ void ComponentContext::reconcileList(const SharedWidget &listHolder,
         }
 
         // Update container children (only modify DOM if needed)
-        holder->replaceChildren(newChildren);
+        holder->replaceChildren(std::move(newChildren));
 
         // Destroy any unused widgets
         for (const auto &[key, widget]: existingChildren) {
@@ -166,7 +176,6 @@ void ComponentContext::reconcileList(const SharedWidget &listHolder,
 
 std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<Widget> &old,
                                                           std::unique_ptr<WidgetHolder> newCaller) {
-    ScopedTimer timer;
     auto &subComponent = old->component();
     subComponent->_reconciliationStarted = true;
     //To make the new state
@@ -177,9 +186,11 @@ std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<
             subComponent);
         auto result = newCaller->execute(engine);
         engine->unplugComponent();
+        subComponent->_reconciliationStarted = false;
         return result;
     }
     auto oldContainer = old->as<ContainerWidget>();
+    auto oldReconcilingObject = subComponent->reconcilingObject;
     bool reconcilState = subComponent->_reconciliationStarted;
     subComponent->_reconciliationStarted = true;
     subComponent->reconcilingObject = oldContainer;
@@ -188,9 +199,10 @@ std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<
     subComponent->reconcilingObject.reset();
     //To avoid
     subComponent->toBeUpdated.clear();
-    //There is only once case that force us to reset the reconciliation flag which is adding dyniamc children.
+    //There is only one case that force us to reset the reconciliation flag which is adding dynamic children.
     subComponent->_reconciliationStarted = reconcilState;
     subComponent->dirty = false;
+    subComponent->reconcilingObject = oldReconcilingObject;
     old->resetPointer();
     return newWidget;
 }

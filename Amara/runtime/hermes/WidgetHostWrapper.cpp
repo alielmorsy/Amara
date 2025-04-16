@@ -136,6 +136,7 @@ Value WidgetHostWrapper::insertChild(Runtime &rt, const Value *args, size_t coun
         auto holder = engine->getWidgetHolder(Value(rt, args[1]));
 
         containerWidget->insertChild(engine, std::move(id), std::move(holder));
+        int x=0;
     } else {
         //State variable
     }

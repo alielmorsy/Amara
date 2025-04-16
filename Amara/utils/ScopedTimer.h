@@ -63,7 +63,7 @@ public:
             value = micros;
             unit = "µs";
         } else if (millis < 1000) {
-            value = millis;
+            value = micros/1000.;
             unit = "ms";
         } else {
             value = seconds;

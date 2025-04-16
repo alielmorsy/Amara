@@ -94,7 +94,81 @@ initial call (The first call for the algorithm) the `ChildComponent` will be ren
 reason that the component had to be recalled, the ChildComponent will be moved automatically to the new vdom to reduce
 any calculations.
 
+### How would we handle the children of a static component?
 
+For this issue, we have two cases:
+
+1. All children are static so we can pass them directly. Like this:
+
+```js
+parent.addStaticChild({
+    $$internalComponent: false,
+    component: ChildComponent,
+    props: {
+        children: [
+            {
+                $$internalComponent: true,
+                component: "text",
+                props: {
+                    children: ["Hello from Child One"]
+                },
+                id: "CHILDIDONE"
+            },
+            {
+                $$internalComponent: true,
+                component: "text",
+                props: {
+                    children: ["Hello from Child Two."]
+                },
+                id: "CHILDIDONE"
+            }
+        ]
+    },
+    id: "randomIDKey1"
+});
+```
+
+2. One or more of the children depend on a variable. This one is a bit tricky for so many reasons because we may have
+   children that will never change. So I am between two solutions:
+    1. Define these functions in the parent component as elements (Call them directly) but if the parent changed we may
+       have unnecessary calculations.
+    2. Put them as objects and render them down there. in specific parent. Something like that:
+
+```js
+function Test({children, name}) {
+    beginComponentInit();
+    const [counter, setCounter] = useState(4)
+    const [d, setD] = useState(4)
+    const _parent5 = createElement("component", {});
+    //insert children directly into the parent 5
+    _parent5.insertChildren(children)
+    effect(() => {
+        const _element5 = {
+            $$internalComponent: true,
+            component: "text",
+            props: {
+                children: [
+                    name + counter
+                ]
+            },
+            id: "zUblYAq"
+        }
+
+        _parent5.insertChild("zUblYAq", _element5);
+    }, [name, counter])
+    effect(() => {
+        setCounter(7)
+    }, [])
+    endComponent();
+    return _parent5;
+}
+```
+
+Under the hood, `insertChildren` will create a parent that holds all these children to make it easier to reconcile. The
+reason is kinda weird, but it makes total sense. To make diffing as lower as possible.
+
+> You mate notice that unlike `insertChild` `insertChildren` doesn't take ID. The reason is kinda simple. children will
+> always be an array, each element in these children will always have an ID, so we can insert items directly
 <hr>
 This theory may look simple and assuming that ChildComponent has no states. That's true, and that's why we introduce the second game changer feature (Inspired by vue). Let's modify the ChildComponent a bit:
 
@@ -138,12 +212,13 @@ function ChildComponent() {
 ```
 
 In this example, We did two different things:
-1- The first span is acting like a parent meaning we called addChild on it, and we called `parent.addChild(spanOne)` to
-add that span to the tree.
 
-2- We introduced a new internal function `effect`.
+1. The first span is acting like a parent meaning we called addChild on it, and we called `parent.addChild(spanOne)` to
+   add that span to the tree.
 
-3- We Also introduced `insertChild`.
+2. We introduced a new internal function `effect`.
+
+3. We Also introduced `insertChild`.
 
 - The logic behind `insertChild` is pretty simple we add the child to a location in the tree, then we save the index of
   that location.

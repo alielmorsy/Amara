@@ -81,7 +81,7 @@ Value HermesEngine::useStateImpl(const Value &value) {
     auto wrapper = createStateWrapper(value);
     auto &context = contextStack.top();
 
-    auto [stateValue, func] = context->useState(std::move(wrapper), [this, context=std::shared_ptr(context)]() {
+    auto [stateValue, func] = context->useState(std::move(wrapper), [this, context=std::shared_ptr(context)] {
         nextIterationComponents.emplace_back(context);
     });
 
@@ -140,10 +140,11 @@ void HermesEngine::render(const Value &value) {
     componentsToBeUpdated.insert(componentsToBeUpdated.end(), nextIterationComponents.begin(),
                                  nextIterationComponents.end());
     nextIterationComponents.clear();
-    for (int i = 0; i < 3; i++) {
-        auto iter = new ScopedTimer("Iteration " + std::to_string(i));
+    std::cout << "Initial render done" << std::endl;
+    for (int i = 0; i < 100; i++) {
+        //auto iter = new ScopedTimer("Iteration " + std::to_string(i));
         if (!componentsToBeUpdated.empty()) {
-            //rootWidget->printTree();
+       //     rootWidget->printTree();
         }
         std::sort(componentsToBeUpdated.begin(), componentsToBeUpdated.end(),
                   [](const std::shared_ptr<ComponentContext> &first, const std::shared_ptr<ComponentContext> &second) {
@@ -152,14 +153,23 @@ void HermesEngine::render(const Value &value) {
         for (auto &c: componentsToBeUpdated) {
             c->update();
         }
+        if (nextIterationComponents.empty()) {
+            std::cout << "ENDED EARLY" << std::endl;
+     //       delete iter;
+            break;
+        }
         componentsToBeUpdated.clear();
         componentsToBeUpdated.insert(componentsToBeUpdated.end(), nextIterationComponents.begin(),
                                      nextIterationComponents.end());
 
         nextIterationComponents.clear();
-        delete iter;
+        //Basically dirty is reset to false after the first update call.
+        for (auto &element: componentsToBeUpdated) {
+            element->markDirty();
+        }
+     //   delete iter;
     }
-    //   rootWidget->printTree();
+      rootWidget->printTree();
 }
 
 SharedWidget HermesEngine::findSharedWidget(StateWrapperRef &widgetVariable) {

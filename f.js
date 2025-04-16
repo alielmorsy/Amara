@@ -83,7 +83,9 @@ function createRef(initialValue) {
         get(target, prop, receiver) {
             // Handle special properties
             if (prop === 'value' || prop === '_internalValueOf') return target[VALUE_KEY];
-            if (prop === 'setValue') return (newValue) => target[VALUE_KEY] = newValue;
+            if (prop === 'setValue') return (newValue) => {
+                target[VALUE_KEY] = newValue
+            };
             if (prop === '_isStateVariable') return () => true;
 
             // Handle value coercion
@@ -236,9 +238,7 @@ function ChildComponent({
     }
 }
 
-function GrandChildComponent({
-                                 data
-                             }) {
+function GrandChildComponent() {
     beginComponentInit();
     const [names, setNames] = useState(["ALi"]);
     {
@@ -268,7 +268,7 @@ function GrandChildComponent({
                             props: {
                                 children: ["Hello from internal sub component"]
                             },
-                            id:"IDKIJUSTGOTHERE"
+                            id: "IDKIJUSTGOTHERE"
                         }],
                         name: value
                     },
@@ -279,9 +279,11 @@ function GrandChildComponent({
 
                 }
             });
-            setNames(["Ali", "Emad", "Hassan"])
-        }, [names]);
 
+        }, [names]);
+        effect(() => {
+            setNames([...names, "Ali", "Emad", "Hassan"])
+        }, [names])
         _parent5.addChild(_element7);
         _parent5.addChild(_parentBase);
         endComponent();
@@ -291,8 +293,7 @@ function GrandChildComponent({
 
 function Test({children, name}) {
     beginComponentInit();
-    const [counter, setCounter] = useState(4)
-    const [d, setD] = useState(4)
+    //const [counter,setCounter]=useState(1);
     const _parent5 = createElement("component", {});
     _parent5.insertChildren(children)
     effect(() => {
@@ -301,22 +302,20 @@ function Test({children, name}) {
             component: "text",
             props: {
                 children: [
-                    name + counter
+                    name
                 ]
             },
-            id: "zUblYAq"
+            id: "leloID"
         }
 
-        _parent5.insertChild("zUblYAq", _element5);
-    }, [name, counter])
-    effect(() => {
-        setCounter(7)
-    }, [])
+        _parent5.insertChild("leloID", _element5);
+    }, [name])
+
     endComponent();
     return _parent5;
 }
 
-render(ParentComponent)
+render(GrandChildComponent)
 
 //gc();
 shutdown()

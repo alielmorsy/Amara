@@ -194,10 +194,13 @@ void ContainerWidget::insertChild(IEngine *engine, std::string id, std::unique_p
         auto reconcileComponent = _component->reconcilingObject.lock();
         if (reconcileComponent) {
             if (reconcileComponent->insertedChildren.find(id) != reconcileComponent->insertedChildren.end()) {
-                auto newWidget = _component->reconcileObject(
-                    reconcileComponent->_children[reconcileComponent->insertedChildren[id]], std::move(holder));
+                auto index = reconcileComponent->insertedChildren[id];
 
-                insertedChildren[id] = _children.capacity();
+                assert(index<reconcileComponent->_children.size() && "Insertion ID has invalid child index");
+                auto newWidget = _component->reconcileObject(
+                    reconcileComponent->_children[index], std::move(holder));
+
+                insertedChildren[id] = _children.size();
                 _children.emplace_back(newWidget);
                 return;
             }
@@ -208,14 +211,12 @@ normalCase:
         auto widget = holder->execute(engine);
         _children.emplace_back(widget);
         widget->setParent(weak_from_this());
-        insertedChildren[id] = _children.capacity() - 1;
+        insertedChildren[id] = _children.size() - 1;
     } else {
         auto newWidget = _component->reconcileObject(_children[insertedChildren[id]], std::move(holder));
         newWidget->setParent(weak_from_this());
         _children[insertedChildren[id]] = newWidget;
     }
-
-    insertedChildren[id] = _children.size() - 1;
 }
 
 void ContainerWidget::replaceChild(size_t index, const SharedWidget &widget) {

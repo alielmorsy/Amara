@@ -6,7 +6,6 @@
 #include <vector>
 
 
-
 #include "../runtime/hermes/StateWrapper.h"
 #include "../runtime/WidgetHolder.h"
 #include "../runtime/AmaraArray.h"
@@ -54,6 +53,7 @@ private:
     std::vector<Effect> effects;
     std::vector<State> states;
     std::unordered_map<size_t, StateWrapperRef> toBeUpdated;
+    std::unordered_map<size_t, StateWrapperRef> updatedStates;
     size_t _index;
 
 public:
@@ -66,7 +66,8 @@ public:
 
     void effect(StateWrapperRef fn, std::vector<StateWrapperRef> deps);
 
-    std::shared_ptr<Widget> reconcileObject(const std::shared_ptr<Widget> &old, std::unique_ptr<WidgetHolder> newCaller);
+    std::shared_ptr<Widget> reconcileObject(const std::shared_ptr<Widget> &old,
+                                            std::unique_ptr<WidgetHolder> newCaller);
 
     void update();
 
@@ -74,13 +75,19 @@ public:
         return _reconciliationStarted;
     }
 
-    void reconcileList(const std::shared_ptr<Widget> &listHolder, std::unique_ptr<AmaraArray> arr, std::unique_ptr<StateWrapper> func);
+    void reconcileList(const std::shared_ptr<Widget> &listHolder, std::unique_ptr<AmaraArray> arr,
+                       std::unique_ptr<StateWrapper> func);
+
+    void markDirty() {
+        dirty = true;
+    };
 
     std::weak_ptr<ContainerWidget> reconcilingObject;
 
     ~ComponentContext() {
         int x = 0;
     }
+
     size_t index() {
         return _index;
     }

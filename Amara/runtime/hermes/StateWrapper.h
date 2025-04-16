@@ -35,6 +35,10 @@ public:
         return Value(rt, value);
     }
 
+    [[nodiscard]] const Value &getValueRef() {
+        return value;
+    }
+
     bool equals(StateWrapper *other) const {
         return Value::strictEquals(rt, value, other->value);
     }
@@ -46,7 +50,7 @@ public:
     }
 
     [[nodiscard]] bool hasValue() const {
-        return !value.isUndefined();
+        return !value.isUndefined() && !value.isNull();
     }
 };
 #endif //WRAPPER_H
