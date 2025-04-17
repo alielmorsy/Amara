@@ -26,7 +26,7 @@ public:
         auto valueObj = this->value.asObject(rt);
         auto setValueFn = valueObj.getPropertyAsFunction(rt, "setValue");
 
-        auto& incoming = newValue->value;
+        auto &incoming = newValue->value;
         if (incoming.isObject()) {
             auto valObj = incoming.asObject(rt);
             if (valObj.isFunction(rt)) {
@@ -61,6 +61,10 @@ public:
     StateWrapperRef call(Args... args) {
         auto result = value.asObject(rt).asFunction(rt).call(rt, std::forward<Args>(args)...);
         return create(rt, std::move(result));
+    }
+
+    [[nodiscard]] bool isStateVariable() const {
+        return value.asObject(rt).hasProperty(rt, "_isStateVariable");
     }
 
     [[nodiscard]] bool hasValue() const {

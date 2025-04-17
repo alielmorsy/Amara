@@ -311,11 +311,30 @@ function Test({children, name}) {
         _parent5.insertChild("leloID", _element5);
     }, [name])
 
+    _parent5.addStaticChild({
+        $$internalComponent: true,
+        component: "component",
+        props: {
+            children: [
+                {
+                    $$internalComponent: true,
+                    component: "text",
+                    props: {
+                        children: [
+                            "I am static child my friend"
+                        ]
+                    }
+                }
+            ],
+            id: "broI am happy"
+        }
+
+    })
     endComponent();
     return _parent5;
 }
 
-render(GrandChildComponent)
+render(ParentComponent)
 
 //gc();
 shutdown()

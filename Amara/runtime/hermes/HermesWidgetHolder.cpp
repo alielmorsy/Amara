@@ -18,6 +18,15 @@ std::shared_ptr<Widget> HermesWidgetHolder::execute(IEngine *engine) {
                 auto val = arr.getValueAtIndex(rt, i);
                 textWidget->addText(val.asString(rt).utf8(rt));
             }
+        } else if (widget->is<ContainerWidget>()) {
+            auto container = widget->as<ContainerWidget>();
+            for (int i = 0; i < arr.size(rt); ++i) {
+                auto val = arr.getValueAtIndex(rt, i);
+                auto ref = StateWrapper::create(rt, std::move(val));
+                auto child = engine->getWidgetHolder(ref);
+                auto childWidget = child->execute(engine);
+                container->addChild(childWidget);
+            }
         }
         if (key().hasKey()) {
             widget->key = key();

@@ -48,7 +48,14 @@ void HermesEngine::componentEffectImpl(Value fn, const Value &deps) {
         auto size = arr.size(*runtime);
         depsVector.reserve(size);
         for (int i = 0; i < size; ++i) {
-            depsVector.emplace_back(StateWrapper::create(*runtime, arr.getValueAtIndex(*runtime, i)));
+            Value v = arr.getValueAtIndex(*runtime, i);
+            // In case the used variable was some sort of primitive, We can ignore it.
+            if (!v.isObject()) continue;
+            if (v.asObject(*runtime).getProperty(*runtime, "_isStateVariable").isUndefined()) {
+                continue;
+            }
+            auto stateVariable = StateWrapper::create(*runtime, std::move(v));
+            depsVector.emplace_back(std::move(stateVariable));
         }
     }
 
@@ -79,14 +86,14 @@ Value HermesEngine::useStateImpl(const Value &value) {
     };
 
     auto wrapper = createStateWrapper(value);
-    auto &context = contextStack.top();
+    auto context = contextStack.top();
 
-    auto [stateValue, func] = context->useState(std::move(wrapper), [this, context=std::shared_ptr(context)] {
+    auto [stateValue, func] = context->useState(std::move(wrapper), [this, context=std::move(context)] {
         nextIterationComponents.emplace_back(context);
     });
 
 
-    auto setter = [this,func=std::move(func)](Runtime &rt, const Value &thisValue, const Value *args, size_t count) {
+    auto setter = [this,func=std::move(func)](Runtime &rt, const Value &thisValue, const Value *args, const size_t count) {
         if (count != 1) {
             throw JSINativeException("setState requires exactly one argument");
         }
@@ -136,15 +143,15 @@ void HermesEngine::render(const Value &value) {
 
     rootWidget = std::move(result.asObject(rt).asHostObject<WidgetHostWrapper>(rt)->getNativeWidget());
 
-    //moving the edited components to next iteration component
+    //moving the edited components to the next iteration component
     componentsToBeUpdated.insert(componentsToBeUpdated.end(), nextIterationComponents.begin(),
                                  nextIterationComponents.end());
     nextIterationComponents.clear();
     std::cout << "Initial render done" << std::endl;
     for (int i = 0; i < 3; i++) {
-        //auto iter = new ScopedTimer("Iteration " + std::to_string(i));
+        auto iter = new ScopedTimer("Iteration " + std::to_string(i));
         if (!componentsToBeUpdated.empty()) {
-       //     rootWidget->printTree();
+            //     rootWidget->printTree();
         }
         std::sort(componentsToBeUpdated.begin(), componentsToBeUpdated.end(),
                   [](const std::shared_ptr<ComponentContext> &first, const std::shared_ptr<ComponentContext> &second) {
@@ -155,7 +162,7 @@ void HermesEngine::render(const Value &value) {
         }
         if (nextIterationComponents.empty()) {
             std::cout << "ENDED EARLY" << std::endl;
-     //       delete iter;
+            //       delete iter;
             break;
         }
         componentsToBeUpdated.clear();
@@ -163,13 +170,13 @@ void HermesEngine::render(const Value &value) {
                                      nextIterationComponents.end());
 
         nextIterationComponents.clear();
-        //Basically dirty is reset to false after the first update call.
+        //Basically, dirty is reset to false after the first update call.
         for (auto &element: componentsToBeUpdated) {
             element->markDirty();
         }
-     //   delete iter;
+        delete iter;
     }
-      rootWidget->printTree();
+    rootWidget->printTree();
 }
 
 SharedWidget HermesEngine::findSharedWidget(StateWrapperRef &widgetVariable) {
