@@ -282,7 +282,7 @@ function GrandChildComponent() {
 
         }, [names]);
         effect(() => {
-            setNames([...names, "Ali", "Emad", "Hassan"])
+            setNames((prev) => [...prev, "Ali", "Emad", "Hassan"])
         }, [names])
         _parent5.addChild(_element7);
         _parent5.addChild(_parentBase);
@@ -293,7 +293,7 @@ function GrandChildComponent() {
 
 function Test({children, name}) {
     beginComponentInit();
-    //const [counter,setCounter]=useState(1);
+    const [counter, setCounter] = useState(1);
     const _parent5 = createElement("component", {});
     _parent5.insertChildren(children)
     effect(() => {

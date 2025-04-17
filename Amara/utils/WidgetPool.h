@@ -12,6 +12,7 @@
 #include <typeindex>
 #include "../ui/Widget.h"
 #include "../runtime/PropMap.h"
+
 class WidgetPool {
 public:
     bool finished = false;
@@ -53,9 +54,7 @@ public:
     void clear() {
         for (auto &element: free_lists) {
             for (auto p: element.second) {
-                if (p) {
-                    delete p;
-                }
+                delete p;
             }
         }
         free_lists.clear();

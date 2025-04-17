@@ -12,7 +12,6 @@ std::tuple<StateWrapper *, SetStateFunction> ComponentContext::useState(std::uni
     StateWrapper *wrapper;
     size_t currentIndex;
     if (_reconciliationStarted) {
-        std::cout << "Recon Hook" << hookCount << std::endl;
         State &state = states[hookCount];
         wrapper = state.object.get();
         currentIndex = hookCount++;

@@ -23,8 +23,22 @@ public:
     }
 
     void setValue(const StateWrapperRef &newValue) const {
-        this->value.asObject(rt).getProperty(rt, "setValue").asObject(rt).asFunction(rt).call(rt, newValue->value);
+        auto valueObj = this->value.asObject(rt);
+        auto setValueFn = valueObj.getPropertyAsFunction(rt, "setValue");
+
+        auto& incoming = newValue->value;
+        if (incoming.isObject()) {
+            auto valObj = incoming.asObject(rt);
+            if (valObj.isFunction(rt)) {
+                auto prevValue = valueObj.getProperty(rt, "value");
+                auto result = valObj.asFunction(rt).call(rt, prevValue);
+                setValueFn.call(rt, result);
+                return;
+            }
+        }
+        setValueFn.call(rt, incoming);
     }
+
 
     [[nodiscard]] StateWrapperRef getInternalValue() const {
         auto value = this->value.asObject(rt).getProperty(rt, "value");
