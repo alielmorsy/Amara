@@ -167,7 +167,7 @@ function Test({children, name}) {
 Under the hood, `insertChildren` will create a parent that holds all these children to make it easier to reconcile. The
 reason is kinda weird, but it makes total sense. To make diffing as lower as possible.
 
-> You mate notice that unlike `insertChild` `insertChildren` doesn't take ID. The reason is kinda simple. children will
+> You may notice that unlike `insertChild` `insertChildren` doesn't take ID. The reason is kinda simple. children will
 > always be an array, each element in these children will always have an ID, so we can insert items directly
 <hr>
 This theory may look simple and assuming that ChildComponent has no states. That's true, and that's why we introduce the second game changer feature (Inspired by vue). Let's modify the ChildComponent a bit:
