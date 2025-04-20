@@ -453,7 +453,7 @@ inside the widgets of these components.
 
 ## The current big issue which I have no solution for it
 
-I have no ducking way how to implement contexts. Contexts were pretty much the black magic in Context which every.
+I have no ducking idea how to implement contexts. Contexts have always been the black magic of the framework.
 
 ## Limitations and how to solve it:
 
