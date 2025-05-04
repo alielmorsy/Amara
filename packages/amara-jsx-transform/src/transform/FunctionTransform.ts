@@ -27,6 +27,24 @@ export function processFunc(path: BabelFunction) {
     const funcState: FunctionScope = {
         variables: new Set<string>(),
     }
+    path.node.params.forEach(param => {
+        if (t.isIdentifier(param)) {
+            // Simple prop like: (props) => ...
+            funcState.variables.add(param.name);
+        } else if (t.isObjectPattern(param)) {
+            // Destructured props like: ({ name, age }) => ...
+            param.properties.forEach(prop => {
+                if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
+                    funcState.variables.add(prop.key.name);
+                } else if (t.isRestElement(prop) && t.isIdentifier(prop.argument)) {
+                    funcState.variables.add(prop.argument.name);
+                }
+            });
+        } else if (t.isAssignmentPattern(param) && t.isIdentifier(param.left)) {
+            // Default props like: (name = 'default') => ...
+            funcState.variables.add(param.left.name);
+        }
+    });
     path.traverse({
         VariableDeclarator(path) {
             const init = path.node.init;

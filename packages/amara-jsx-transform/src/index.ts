@@ -3,14 +3,13 @@ import type * as BabelCore from "@babel/core";
 
 const Plugin = (_babel: typeof BabelCore): BabelCore.PluginObj => {
     return {
-        name: "amara-transform",
+        name: "amara-jsx-transform",
         visitor: {
             FunctionDeclaration: (path,state) => {
                 processFunc(path)
             },
             FunctionExpression: processFunc,
             ArrowFunctionExpression: processFunc,
-            //VariableDeclarator: processFunc,
 
         },
         //Adding jsx to the parsing flow

@@ -214,19 +214,19 @@ function getJsxElementName(openingElement: t.JSXOpeningElement): string {
         // For JSX member expressions like Namespace.Component
         let fullName = '';
         let current: t.JSXMemberExpression | t.JSXIdentifier = nameNode;
-        
+
         while (t.isJSXMemberExpression(current)) {
             fullName = '.' + current.property.name + fullName;
             current = current.object;
         }
-        
+
         if (t.isJSXIdentifier(current)) {
             fullName = current.name + fullName;
         }
-        
+
         return fullName;
     }
-    
+
     throw new Error(`Unsupported JSX element name type: ${openingElement.name.type}`);
 }
 
@@ -247,33 +247,33 @@ export function handleJsxExpression(
     const expression = path.node.expression;
     const statements: t.Statement[] = [];
     const expressionId = generateShortId();
-    
+
     // Skip empty expressions like {}
     if (t.isJSXEmptyExpression(expression)) {
         return statements;
     }
 
     // Handle &&-based conditional rendering: {condition && <Component/>}
-    if (t.isLogicalExpression(expression) && expression.operator === '&&') {
+    if (t.isLogicalExpression(expression)) {
         const condition = expression.left;
         const jsxContent = expression.right;
-        
+
         // Get state dependencies from the condition
         const stateDependency = containsStateGetterCall(condition, funcState);
-        
+
         if (t.isJSXElement(jsxContent)) {
             // Transform the JSX element
             const jsxResult = handleJsxElement(
                 path.get('expression.right') as NodePath<t.JSXElement>,
                 funcState,
                 undefined,
-                false
+                true
             );
-            
+
             if (jsxResult.expression) {
                 // Create placeholder in the parent element with a unique ID
                 const placeholderId = t.stringLiteral(expressionId);
-                
+
                 // Create effect to update the conditional rendering
                 const effectBody = t.blockStatement([
                     t.ifStatement(
@@ -296,7 +296,7 @@ export function handleJsxExpression(
                         ])
                     )
                 ]);
-                
+
                 // Create the effect with appropriate dependencies
                 const dependencies = stateDependency ? [t.identifier(stateDependency)] : [];
                 const effectCall = t.callExpression(
@@ -306,7 +306,7 @@ export function handleJsxExpression(
                         t.arrayExpression(dependencies)
                     ]
                 );
-                
+
                 statements.push(...jsxResult.statements);
                 statements.push(t.expressionStatement(effectCall));
             }
@@ -317,20 +317,20 @@ export function handleJsxExpression(
         const condition = expression.test;
         const consequent = expression.consequent;
         const alternate = expression.alternate;
-        
+
         // Get state dependencies from the condition
         const stateDependency = containsStateGetterCall(condition, funcState);
-        
+
         // Handle JSX in both branches
         let consequentResult: JsxResult | null = null;
         let alternateResult: JsxResult | null = null;
-        
+
         if (t.isJSXElement(consequent)) {
             consequentResult = handleJsxElement(
                 path.get('expression.consequent') as NodePath<t.JSXElement>,
                 funcState,
                 undefined,
-                false
+                true
             );
         } else if (!t.isJSXEmptyExpression(consequent)) {
             // Handle non-JSX expressions in the consequent
@@ -352,13 +352,13 @@ export function handleJsxExpression(
                 statements: []
             };
         }
-        
+
         if (t.isJSXElement(alternate)) {
             alternateResult = handleJsxElement(
                 path.get('expression.alternate') as NodePath<t.JSXElement>,
                 funcState,
                 undefined,
-                false
+                true
             );
         } else if (!t.isJSXEmptyExpression(alternate)) {
             // Handle non-JSX expressions in the alternate
@@ -380,12 +380,12 @@ export function handleJsxExpression(
                 statements: []
             };
         }
-        
+
         // Create placeholder in the parent element with a unique ID
         const placeholderId = t.stringLiteral(expressionId);
-        
+
         const effectBodyStatements = [];
-        
+
         // Add condition branch
         if (consequentResult && consequentResult.expression) {
             effectBodyStatements.push(
@@ -418,7 +418,7 @@ export function handleJsxExpression(
                 )
             );
         }
-        
+
         // Create the effect with appropriate dependencies
         const dependencies = stateDependency ? [t.identifier(stateDependency)] : [];
         const effectCall = t.callExpression(
@@ -428,7 +428,7 @@ export function handleJsxExpression(
                 t.arrayExpression(dependencies)
             ]
         );
-        
+
         // Add all statements from both branches
         if (consequentResult) {
             statements.push(...consequentResult.statements);
@@ -436,17 +436,17 @@ export function handleJsxExpression(
         if (alternateResult) {
             statements.push(...alternateResult.statements);
         }
-        
+
         statements.push(t.expressionStatement(effectCall));
     }
     // Handle other expressions (like simple variables or function calls)
     else {
         const stateDependency = containsStateGetterCall(expression, funcState);
-        
+
         if (stateDependency) {
             // Create placeholder with unique ID
             const placeholderId = t.stringLiteral(expressionId);
-            
+
             // Effect to update text content
             const effectBody = t.blockStatement([
                 t.expressionStatement(
@@ -472,7 +472,7 @@ export function handleJsxExpression(
                     )
                 )
             ]);
-            
+
             // Create the effect with appropriate dependencies
             const effectCall = t.callExpression(
                 t.identifier('effect'),
@@ -481,7 +481,7 @@ export function handleJsxExpression(
                     t.arrayExpression([t.identifier(stateDependency)])
                 ]
             );
-            
+
             statements.push(t.expressionStatement(effectCall));
         } else {
             // For static content, directly insert it
@@ -510,7 +510,7 @@ export function handleJsxExpression(
             );
         }
     }
-    
+
     return statements;
 }
 
@@ -571,7 +571,7 @@ export function handleJsxElement(
                     const statements = [declaration, mapHandler];
                     childrenResults.push({expression: mapParent, statements});
                 }
-            } 
+            }
             // Handle logical expressions (&&) and conditional expressions (ternary)
             else if (t.isLogicalExpression(exp) && exp.operator === '&&' && t.isJSXElement(exp.right)) {
                 // Let the specialized handler deal with this
@@ -581,9 +581,8 @@ export function handleJsxElement(
                     elementVariable
                 );
                 childrenResults.push({expression: null, statements: expressionStatements});
-            }
-            else if (t.isConditionalExpression(exp) && 
-                   (t.isJSXElement(exp.consequent) || t.isJSXElement(exp.alternate))) {
+            } else if (t.isConditionalExpression(exp) &&
+                (t.isJSXElement(exp.consequent) || t.isJSXElement(exp.alternate))) {
                 // Let the specialized handler deal with this
                 const expressionStatements = handleJsxExpression(
                     path.get(`children.${index}`) as NodePath<t.JSXExpressionContainer>,
@@ -591,8 +590,7 @@ export function handleJsxElement(
                     elementVariable
                 );
                 childrenResults.push({expression: null, statements: expressionStatements});
-            }
-            else {
+            } else {
                 const variables = containsStateGetterCall(exp, funcState);
                 if (variables && !forceStatic) {
                     const expressionStatements = handleJsxExpression(
@@ -714,7 +712,6 @@ export function handleJsxElement(
 
     return {expression: elementVariable, statements};
 }
-
 
 
 function findAvailableVariables(node: t.Node, functionScope: FunctionScope, path: NodePath): string[] {
