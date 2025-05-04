@@ -69,7 +69,7 @@ function createRef1(initialValue) {
     return ref;
 }
 
-function createRef(initialValue) {
+function createRef(initialValue,stateVariable=true) {
     const VALUE_KEY = Symbol('stateValue');
     const container = {
         [VALUE_KEY]: initialValue,
@@ -86,7 +86,7 @@ function createRef(initialValue) {
             if (prop === 'setValue') return (newValue) => {
                 target[VALUE_KEY] = newValue
             };
-            if (prop === '_isStateVariable') return () => true;
+            if (prop === '_isStateVariable') return  stateVariable;
 
             // Handle value coercion
             if (prop === Symbol.toPrimitive) {
@@ -333,7 +333,6 @@ function Test({children, name}) {
     endComponent();
     return _parent5;
 }
-
 render(ParentComponent)
 
 //gc();

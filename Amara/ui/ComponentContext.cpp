@@ -7,6 +7,7 @@
 #include "Widget.h"
 #include "../utils/ScopedTimer.h"
 
+// Currently I am using a placeholder useState. The real implementation should be a queue to handle setStates in order.
 std::tuple<StateWrapper *, SetStateFunction> ComponentContext::useState(std::unique_ptr<StateWrapper> value,
                                                                         EmptyFunction notifier) {
     StateWrapper *wrapper;

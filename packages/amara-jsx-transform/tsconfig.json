@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",          // Use modern JavaScript syntax
+    "module": "ESNext",          // Output ES modules (Rollup will handle bundling)
+    "strict": true,              // Enable strict type-checking
+    "esModuleInterop": true,     // Enable compatibility with CommonJS modules
+    "declaration": true,         // Generate `.d.ts` type declaration files
+    "outDir": "./dist",          // Output directory for compiled files
+    "rootDir": "./src",          // Root directory of input files
+    "moduleResolution": "node",  // Resolve modules using Node.js rules
+    "skipLibCheck": true,        // Skip type-checking of `.d.ts` files (faster builds)
+    "sourceMap": true            // Generate source maps for debugging
+  },
+  "include": ["src/**/*"],       // Include all TypeScript files in the `src` folder
+  "exclude": ["node_modules/**/*"]    // Exclude `node_modules` from compilation
+}

@@ -1,0 +1,64 @@
+{
+  "name": "@your-scope/amara",
+  "version": "1.0.0",
+  "description": "A JSX transformer and utility library for modern JavaScript tooling.",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c --bundleConfigAsCjs",
+    "dev": "nodemon --watch src --exec yarn build"
+  },
+  "dependencies": {
+    "jsx": "^0.9.89"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.27.0",
+    "@babel/core": "^7.26.10",
+    "@babel/plugin-transform-react-jsx": "latest",
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-react": "^7.26.3",
+    "@babel/preset-typescript": "^7.27.0",
+    "@babel/types": "^7.27.0",
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/babel__core": "^7.20.5",
+    "@types/node": "^22.14.1",
+    "nodemon": "^3.1.9",
+    "rollup": "^4.40.0",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.3"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^17.0.0"
+  },
+  "resolutions": {
+    "@babel/core": "^7.26.10",
+    "@babel/generator": "^7.26.10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alielmorsy/Aamara.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alielmorsy/Aamara/issues"
+  },
+  "homepage": "https://github.com/alielmorsy/Aamara#readme",
+  "keywords": [
+    "jsx",
+    "babel",
+    "react",
+    "compiler",
+    "plugin",
+    "amara"
+  ],
+  "author": "Ali Elmorsy <ali.elmorsy19@gmail.com>",
+  "license": "MIT",
+  "packageManager": "yarn@1.22.22"
+}
