@@ -167,7 +167,7 @@ function Test({children, name}) {
 Under the hood, `insertChildren` will create a parent that holds all these children to make it easier to reconcile. The
 reason is kinda weird, but it makes total sense. To make diffing as lower as possible.
 
-> You mate notice that unlike `insertChild` `insertChildren` doesn't take ID. The reason is kinda simple. children will
+> You may notice that unlike `insertChild` `insertChildren` doesn't take ID. The reason is kinda simple. children will
 > always be an array, each element in these children will always have an ID, so we can insert items directly
 <hr>
 This theory may look simple and assuming that ChildComponent has no states. That's true, and that's why we introduce the second game changer feature (Inspired by vue). Let's modify the ChildComponent a bit:
@@ -211,25 +211,21 @@ function ChildComponent() {
 }
 ```
 
-In this example, We did two different things:
+In this example, we did three different things:
 
-1. The first span is acting like a parent meaning we called addChild on it, and we called `parent.addChild(spanOne)` to
-   add that span to the tree.
+1. The first span is acting as a parent, meaning we called `addChild` on it by invoking `parent.addChild(spanOne)` to add that span to the tree.
 
-2. We introduced a new internal function `effect`.
+2. We introduced a new internal function called `effect`.
 
-3. We Also introduced `insertChild`.
+3. We also introduced `insertChild`.
 
-- The logic behind `insertChild` is pretty simple we add the child to a location in the tree, then we save the index of
-  that location.
-- The reason behind the first note is in case the effect function was called, we know exactly where to add this child
-  exactly.
-- All IDs are generated during compile time to reduce any overheads to the runtime so most operations are O(1)
+- The logic behind `insertChild` is straightforward: we add the child to a specific location in the tree, then store the index of that location.
+- The reason behind the first note is to ensure that, if the `effect` function is called, we know exactly where to insert the child.
+- All IDs are generated at compile time to reduce runtime overhead, so most operations are O(1).
 
-> **IMPORTANT NOTE**: The `effect` function may look like `useEffect` hook, but they are completely different.
+> **IMPORTANT NOTE**: The `effect` function may look similar to the `useEffect` hook, but they are completely different.
 
-> All components are transformed in a way to make sure it can work as a static component or a dynamic component. That
-> ensures the implementation is robust across different use cases of the same component
+> All components are transformed in a way that ensures they can function either as static or dynamic components. This guarantees a robust implementation across different use cases of the same component.
 
 ## The magic of the effect function
 
@@ -457,7 +453,7 @@ inside the widgets of these components.
 
 ## The current big issue which I have no solution for it
 
-I have no ducking way how to implement contexts. Contexts were pretty much the black magic in Context which every.
+I have no ducking idea how to implement contexts. Contexts have always been the black magic of the framework.
 
 ## Limitations and how to solve it:
 
