@@ -28,7 +28,7 @@ this:
 
 ```js
 function Component() {
-    beginComponentInit();
+    beginComponentInit("randomID");
     const parent = createElment("div", {});
     parent.addStaticChild({
         $$internalComponent: true,
@@ -77,7 +77,7 @@ bit crazier. See how the Parent Component will look like:
 
 ```js
 function ParentComponent() {
-    beginComponentInit(); // A must (Will be added automatically)
+    beginComponentInit("randomID"); // A must (Will be added automatically)
 ...//Any other code
     const parent = createElment("div", {});
     parent.addStaticChild({
@@ -136,7 +136,7 @@ parent.addStaticChild({
 
 ```js
 function Test({children, name}) {
-    beginComponentInit();
+    beginComponentInit("randomID");
     const [counter, setCounter] = useState(4)
     const [d, setD] = useState(4)
     const _parent5 = createElement("component", {});
@@ -189,7 +189,7 @@ in the concept of reactivity. Let's see how the compiler will output that:
 
 ```js
 function ChildComponent() {
-    beginComponentInit();
+    beginComponentInit("randomID");
     const [name, setName] = useState("Ali");
     const parent = createElment("div", {});
     const spanOne = createElement("span", {});
@@ -298,7 +298,7 @@ like:
 
 ```js
 function ChildComponent() {
-    beginComponentInit();
+    beginComponentInit("randomID");
     const [width, setWidth] = useState(0)
     useEffect(() => {
         setTimeout(() => {
@@ -352,7 +352,7 @@ figure it yourself:
 ```js
 
 function ParentComponent() {
-    beginComponentInit();
+    beginComponentInit("randomID");
     const [name, setName] = useState("Ali")
     const parent = createElement("div", {});
     effect(() => {
@@ -412,7 +412,7 @@ The output of the compiler:
 
 ```js
 function Component() {
-    beginComponentInit();
+    beginComponentInit("randomID");
     const [arr, setArr] = useState([]);
     useEffect(() => {
         //Simulate network request
@@ -445,7 +445,7 @@ the list reconcile function.
 ### How `listConcile` works under the hood.
 
 It's a simple function that loops through the given array, and for each element it calls the given widget function and
-diff both subtrees while forcing the same constrains mentioned before.
+diffs both subtrees while forcing the same constraining mentioned before.
 
 ## Mixed Children
 
@@ -453,8 +453,85 @@ Not our components static and not our components dynamic. I would like to avoid 
 consider this example:
 
 ```jsx
+function CountLabel({count}) {
+    return <span className={"m-3 text-red"}> {count} </span>
+}
 
+function CustomButton(props) {
+    return <button {...props}/>
+}
+
+function Component() {
+    const [count, setCount] = useCount(0)
+    return <div>
+        <CustomButton onClick={() => setCount(prev => prev + 1)}>
+            Current Count <CountLabel count={count}/>
+        </CustomButton>
+    </div>
+}
 ```
+
+This component has two other components `CustomButton` and `CountLabel`. CustomButton is a static component while
+CountLabel is not. So we need a mixture to reduce rendering as much as possible. So, output will be like this:
+
+```js
+function CountLabel({count}) {
+    beginComponentInit("id");
+    const parent = createElement("span", {
+        className: "m-3 text-red"
+    });
+    effect(() => {
+        parent.insertChild("id", count)
+    }, [count])
+    endComponent();
+    return parent;
+
+}
+
+function CustomButton(props) {
+    beginComponentInit("id");
+    const parent = createElement("span", {
+        ...props
+    });
+
+    endComponent();
+    return parent;
+
+}
+
+function Component() {
+    beginComponentInit("id");
+    const [count, setCount] = useCount(0)
+    const parent = createElement("div", {})
+    const holder = createElement("holder", {})
+    effect(() => {
+        holder.setChild({
+            $$internalComponent: false,
+            component: CountLabel,
+            props: {
+                count
+            }
+        })
+    }, [count])
+    parent.addStaticChild({
+        $$internalComponent: false,
+        component: CustomButton,
+        props: {
+            onClick: () => setCount(prev => prev + 1),
+            children: [
+                "Current Count",
+                holder
+            ]
+        }
+    })
+    endComponent();
+    return parent;
+}
+```
+
+Now, we introduce the holder element. It's a special internal element (won't work if used manually) that can have only
+one child that can change, and this child is part of a static element. I believe with it. We introduced more complex mechanics to play with
+
 ## Why `beginComponentInit` and `endComponent`?
 
 Each component (Function that returns a JSX) will have states, effects, useEffect, useMemo,...etc. or any other internal

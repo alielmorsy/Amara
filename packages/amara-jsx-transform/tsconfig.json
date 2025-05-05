@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "jsx": "preserve",
     "target": "ESNext",          // Use modern JavaScript syntax
     "module": "ESNext",          // Output ES modules (Rollup will handle bundling)
     "strict": true,              // Enable strict type-checking

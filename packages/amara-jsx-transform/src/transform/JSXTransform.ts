@@ -25,7 +25,7 @@ export function createMapHandler(mapInfo: MapInfo, parentPath: NodePath, funcSta
         const idxParam = path.scope.generateUidIdentifier(indexParam || "index");
         traverse(callback.body, {
             JSXElement(path) {
-                const result = handleJsxElement(path, funcState, undefined, true)
+                const result = handleJsxElement(path, funcState, undefined, true, false)
                 path.replaceWith(result.expression!)
             }
         }, parentPath.scope)
@@ -518,7 +518,8 @@ export function handleJsxElement(
     path: NodePath<t.JSXElement>,
     funcState: FunctionScope,
     parentVariable?: t.Identifier,
-    forceStatic = false
+    forceStatic = false,
+    canCreateHolder = true
 ): JsxResult {
     const isInReturnStatement = path.parentPath && path.parentPath.isReturnStatement();
     const isVariable = path.parentPath.isVariableDeclarator();
@@ -544,6 +545,7 @@ export function handleJsxElement(
 
     // Process children
     const childrenResults: JsxResult[] = [];
+
     path.node.children.forEach((child, index) => {
         if (t.isJSXElement(child)) {
             const childPath = path.get('children')[index] as NodePath<t.JSXElement>;
@@ -560,6 +562,7 @@ export function handleJsxElement(
                 // Handle empty expression by using an empty string literal
                 childrenResults.push({expression: t.stringLiteral(""), statements: []});
             } else if (t.isCallExpression(exp) && isMapExpression(exp)) {
+                forceStatic = originalForceStatic;
                 const mapParent = path.scope.generateUidIdentifier("mapParent");
                 const mapInfo = extractMapInfo(exp as t.CallExpression, funcState, path);
                 if (mapInfo) {
@@ -574,6 +577,7 @@ export function handleJsxElement(
             }
             // Handle logical expressions (&&) and conditional expressions (ternary)
             else if (t.isLogicalExpression(exp) && exp.operator === '&&' && t.isJSXElement(exp.right)) {
+                forceStatic = originalForceStatic;
                 // Let the specialized handler deal with this
                 const expressionStatements = handleJsxExpression(
                     path.get(`children.${index}`) as NodePath<t.JSXExpressionContainer>,
@@ -583,6 +587,7 @@ export function handleJsxElement(
                 childrenResults.push({expression: null, statements: expressionStatements});
             } else if (t.isConditionalExpression(exp) &&
                 (t.isJSXElement(exp.consequent) || t.isJSXElement(exp.alternate))) {
+                forceStatic = originalForceStatic;
                 // Let the specialized handler deal with this
                 const expressionStatements = handleJsxExpression(
                     path.get(`children.${index}`) as NodePath<t.JSXExpressionContainer>,
@@ -591,6 +596,7 @@ export function handleJsxElement(
                 );
                 childrenResults.push({expression: null, statements: expressionStatements});
             } else {
+                forceStatic = originalForceStatic;
                 const variables = containsStateGetterCall(exp, funcState);
                 if (variables && !forceStatic) {
                     const expressionStatements = handleJsxExpression(
@@ -610,7 +616,7 @@ export function handleJsxElement(
     const canBeStatic = forceStatic || (
         dynamicProps.length === 0 &&
         childrenResults.every(result => result.expression !== null && result.statements.length === 0)
-        && parentVariable
+        && parentVariable !== undefined
     );
 
     if (canBeStatic) {
@@ -623,10 +629,22 @@ export function handleJsxElement(
             createObjectProperty("props", staticProps),
             createObjectProperty("id", t.stringLiteral(generateShortId()))
         ]);
-
+        if (originalForceStatic && canCreateHolder && dynamicProps.length > 0) {
+            const holder = path.scope.generateUidIdentifier("holder")
+            const caller = t.callExpression(t.identifier(`createElement`), [t.stringLiteral("holder"), t.objectExpression([])])
+            const definition = t.variableDeclaration("const", [t.variableDeclarator(holder, caller)])
+            childrenStatement.push(definition)
+            const updater = t.callExpression(t.memberExpression(holder, t.identifier("setChild")), [staticObject]);
+            const arrowFunction = t.arrowFunctionExpression([], t.blockStatement([t.expressionStatement(updater)]));
+            const depsExpression = t.arrayExpression(dynamicProps.map((v) => t.identifier(v[3]!)));
+            const effect = t.callExpression(t.identifier("effect"), [arrowFunction, depsExpression]);
+            return {expression: holder, statements: [...childrenStatement, t.expressionStatement(effect)]};
+        }
         if (dynamicProps.length === 0 || forceStatic) {
             return {expression: staticObject, statements: childrenStatement};
-        } else if (parentVariable) {
+        }
+        if (parentVariable) {
+
             const updater = t.callExpression(t.memberExpression(parentVariable, t.identifier("insertChild")), [
                 t.stringLiteral(generateShortId()),
                 staticObject
@@ -636,18 +654,18 @@ export function handleJsxElement(
             const effect = t.callExpression(t.identifier("effect"), [arrowFunction, depsExpression]);
             return {expression: null, statements: [...childrenStatement, t.expressionStatement(effect)]};
         }
+        return {expression: staticObject, statements: childrenStatement};
     }
 
     // Dynamic case
     const statements: t.Statement[] = [];
 
-    childrenResults.forEach(result => statements.push(...result.statements));
 
     const object = isInternal
         ? t.callExpression(t.identifier(`createElement`), [t.stringLiteral(elementName), staticProps])
         : t.callExpression(t.identifier(elementName), [staticProps]);
     statements.push(t.variableDeclaration('const', [t.variableDeclarator(elementVariable, object)]));
-
+    childrenResults.forEach(result => statements.push(...result.statements));
     dynamicProps.forEach(prop => {
         let updater: t.Statement;
         if (prop[0] === "prop") {

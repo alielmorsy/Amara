@@ -6,10 +6,17 @@ const Plugin = (_babel: typeof BabelCore): BabelCore.PluginObj => {
         name: "amara-jsx-transform",
         visitor: {
             FunctionDeclaration: (path,state) => {
+                console.log("Handling File:",state.filename)
                 processFunc(path)
             },
-            FunctionExpression: processFunc,
-            ArrowFunctionExpression: processFunc,
+            FunctionExpression: (path,state) => {
+                console.log("Handling File:",state.filename)
+                processFunc(path)
+            },
+            ArrowFunctionExpression: (path,state) => {
+                console.log("Handling File:",state.filename)
+                processFunc(path)
+            },
 
         },
         //Adding jsx to the parsing flow

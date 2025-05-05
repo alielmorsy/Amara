@@ -2,7 +2,7 @@ import crypto from "crypto";
 import {type NodePath, traverse, types as t} from '@babel/core'
 import {FunctionScope} from "./transform/types";
 
-export const INTERNAL_COMPONENTS = ['div', 'Button', 'button', 'ToggleButton', 'ul', 'li', 'h2', 'h1', 'lelo', 'span', 'text', 'holder'];
+export const INTERNAL_COMPONENTS = ['div', 'Button', 'button', 'ToggleButton', 'ul', 'li', 'h2', 'h1', 'lelo', 'span', 'text', 'holder', 'HOLDER_ELEMENT'];
 
 export function generateShortId(length = 12) {
     return crypto.randomBytes(Math.ceil(length / 2)).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, length);
@@ -26,6 +26,46 @@ export function isMapExpression(expr: t.Node) {
     return t.isCallExpression(expr) &&
         t.isMemberExpression(expr.callee) && t.isIdentifier(expr.callee.property) &&
         expr.callee.property.name === 'map';
+}
+
+/**
+ * Checks if a map expression is mapping over components
+ * This helps avoid creating unnecessary holders for component maps
+ */
+export function isComponentMap(node: t.Node): boolean {
+    if (!isMapExpression(node) || !t.isCallExpression(node)) {
+        return false;
+    }
+    
+    // Check the callback function of the map
+    const mapCallback = node.arguments[0];
+    if (!t.isArrowFunctionExpression(mapCallback) && !t.isFunctionExpression(mapCallback)) {
+        return false;
+    }
+    
+    // Check the body of the callback
+    const body = mapCallback.body;
+    if (t.isBlockStatement(body)) {
+        // Look for return statements with JSX elements
+        for (const stmt of body.body) {
+            if (t.isReturnStatement(stmt) && stmt.argument && 
+                (t.isJSXElement(stmt.argument) || 
+                 (t.isCallExpression(stmt.argument) && 
+                  t.isIdentifier(stmt.argument.callee) && 
+                  /^[A-Z]/.test(stmt.argument.callee.name)))) {
+                return true;
+            }
+        }
+        return false;
+    } else if (t.isJSXElement(body) || 
+              (t.isCallExpression(body) && 
+               t.isIdentifier(body.callee) && 
+               /^[A-Z]/.test(body.callee.name))) {
+        // Direct return of a JSX element or component call
+        return true;
+    }
+    
+    return false;
 }
 
 export function containsStateGetterCall(node: t.Node, functionScope: FunctionScope) {
