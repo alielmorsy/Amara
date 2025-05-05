@@ -213,19 +213,23 @@ function ChildComponent() {
 
 In this example, we did three different things:
 
-1. The first span is acting as a parent, meaning we called `addChild` on it by invoking `parent.addChild(spanOne)` to add that span to the tree.
+1. The first span is acting as a parent, meaning we called `addChild` on it by invoking `parent.addChild(spanOne)` to
+   add that span to the tree.
 
 2. We introduced a new internal function called `effect`.
 
 3. We also introduced `insertChild`.
 
-- The logic behind `insertChild` is straightforward: we add the child to a specific location in the tree, then store the index of that location.
-- The reason behind the first note is to ensure that, if the `effect` function is called, we know exactly where to insert the child.
+- The logic behind `insertChild` is straightforward: we add the child to a specific location in the tree, then store the
+  index of that location.
+- The reason behind the first note is to ensure that, if the `effect` function is called, we know exactly where to
+  insert the child.
 - All IDs are generated at compile time to reduce runtime overhead, so most operations are O(1).
 
 > **IMPORTANT NOTE**: The `effect` function may look similar to the `useEffect` hook, but they are completely different.
 
-> All components are transformed in a way that ensures they can function either as static or dynamic components. This guarantees a robust implementation across different use cases of the same component.
+> All components are transformed in a way that ensures they can function either as static or dynamic components. This
+> guarantees a robust implementation across different use cases of the same component.
 
 ## The magic of the effect function
 
@@ -353,7 +357,7 @@ function ParentComponent() {
     const parent = createElement("div", {});
     effect(() => {
         parent.insertChild("someRandomComponentID", {
-            $$internalComponent: true,
+            $$internalComponent: false,
             component: ChildComponent,
             props: {
                 name: name
@@ -379,6 +383,7 @@ marked them as static before.
 > **IMPORTANT NOTE** Maybe I didn't explain it above, but effect function will be called immediately on the first
 > component call. Because as you can see it contains adding children, so it must be called in the same order.
 <hr>
+
 ## Array Mapping
 
 One of the most known patterns in React is array mapping. Something like that
@@ -442,6 +447,14 @@ the list reconcile function.
 It's a simple function that loops through the given array, and for each element it calls the given widget function and
 diff both subtrees while forcing the same constrains mentioned before.
 
+## Mixed Children
+
+Not our components static and not our components dynamic. I would like to avoid this because I hate it but anyway. Let's
+consider this example:
+
+```jsx
+
+```
 ## Why `beginComponentInit` and `endComponent`?
 
 Each component (Function that returns a JSX) will have states, effects, useEffect, useMemo,...etc. or any other internal
