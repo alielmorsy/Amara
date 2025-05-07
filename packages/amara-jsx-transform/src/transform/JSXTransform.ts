@@ -640,7 +640,7 @@ export function handleJsxElement(
             const effect = t.callExpression(t.identifier("effect"), [arrowFunction, depsExpression]);
             return {expression: holder, statements: [...childrenStatement, t.expressionStatement(effect)]};
         }
-        if (dynamicProps.length === 0 || forceStatic) {
+        if (dynamicProps.length === 0 ) {
             return {expression: staticObject, statements: childrenStatement};
         }
         if (parentVariable) {
@@ -665,7 +665,6 @@ export function handleJsxElement(
         ? t.callExpression(t.identifier(`createElement`), [t.stringLiteral(elementName), staticProps])
         : t.callExpression(t.identifier(elementName), [staticProps]);
     statements.push(t.variableDeclaration('const', [t.variableDeclarator(elementVariable, object)]));
-    childrenResults.forEach(result => statements.push(...result.statements));
     dynamicProps.forEach(prop => {
         let updater: t.Statement;
         if (prop[0] === "prop") {
@@ -698,12 +697,14 @@ export function handleJsxElement(
 
     childrenResults.forEach(result => {
         if (result.expression) {
-            const method = isInternal ? "addChild" : "addStaticChild";
+
             const addCall = t.callExpression(
-                t.memberExpression(elementVariable, t.identifier(method)),
+                t.memberExpression(elementVariable, t.identifier("addStaticChild")),
                 [result.expression]
             );
             statements.push(t.expressionStatement(addCall));
+        } else {
+            statements.push(...result.statements)
         }
     });
 
