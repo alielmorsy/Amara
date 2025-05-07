@@ -23,12 +23,12 @@ export function createMapHandler(mapInfo: MapInfo, parentPath: NodePath, funcSta
         // Prepare parameters for the new callback
         const valueParam = itemParam[0] || path.scope.generateUidIdentifier("item");
         const idxParam = path.scope.generateUidIdentifier(indexParam || "index");
-        traverse(callback.body, {
+        parentPath.traverse({
             JSXElement(path) {
                 const result = handleJsxElement(path, funcState, undefined, true, false)
                 path.replaceWith(result.expression!)
             }
-        }, parentPath.scope)
+        })
         callbackFunction = t.arrowFunctionExpression(
             [valueParam, idxParam],
             callback.body
@@ -570,7 +570,7 @@ export function handleJsxElement(
                     const declaration = t.variableDeclaration('const', [
                         t.variableDeclarator(mapParent, createCall)
                     ]);
-                    const mapHandler = createMapHandler(mapInfo, path, funcState, mapParent, path);
+                    const mapHandler = createMapHandler(mapInfo, path.get('children')[index], funcState, mapParent, path);
                     const statements = [declaration, mapHandler];
                     childrenResults.push({expression: mapParent, statements});
                 }
