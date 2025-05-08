@@ -545,7 +545,7 @@ export function handleJsxElement(
                     const mapParent = path.scope.generateUidIdentifier("mapParent");
                     const mapInfo = extractMapInfo(exp as t.CallExpression, funcState, path);
                     if (mapInfo) {
-                        const createCall = t.callExpression(t.identifier("createMapContainer"), []);
+                        const createCall = t.callExpression(t.identifier("createElement"), [t.stringLiteral('container'), t.objectExpression([])]);
                         const declaration = t.variableDeclaration('const', [
                             t.variableDeclarator(mapParent, createCall)
                         ]);
@@ -622,7 +622,7 @@ export function handleJsxElement(
             return {expression: holder, statements: [...childrenStatement, t.expressionStatement(effect)]};
         }
         const depsArray = dynamicProps.map((v) => t.identifier(v[3]!));
-        if (dynamicProps.length === 0 || forceStatic) {
+        if (dynamicProps.length === 0) {
             return {expression: staticObject, statements: childrenStatement, deps: depsArray};
         }
         if (parentVariable) {
@@ -678,15 +678,16 @@ export function handleJsxElement(
     });
 
     childrenResults.forEach(result => {
+        statements.push(...result.statements)
         if (result.expression) {
-
+            const method = t.isObjectExpression(result.expression) ? "addStaticChild" : "addChild"
             const addCall = t.callExpression(
-                t.memberExpression(elementVariable, t.identifier("addStaticChild")),
+                t.memberExpression(elementVariable, t.identifier(method)),
                 [result.expression]
             );
             statements.push(t.expressionStatement(addCall));
         }
-        statements.push(...result.statements)
+
     });
 
     if (isInReturnStatement) {
