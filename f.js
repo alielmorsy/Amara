@@ -1,75 +1,4 @@
-/**
- Three types of adding child:
- - Static Child: Using the widget holder object to avoid recreating them.
- - Normal Adding for internal objects that may be change one of their props during runtime (Usually the style of class name in the future)
- - Inserting Children: Used only for components that one of their parameters change with state
- - We need to find a way to cache static children inside inserted component, That will pretty much enhance the performance x2
-
- */
-function useMemo(fn) {
-    return fn()
-}
-
-
-function createRef1(initialValue) {
-    const ref = function (...args) {
-        if (typeof ref._value === "function") {
-            return ref._value(...args);
-        }
-        throw new TypeError("Ref is not callable");
-    };
-
-    const dataType = typeof initialValue; // Store the initial type
-
-    Object.assign(ref, {
-        _value: initialValue,
-
-        get value() {
-
-            return this._value;
-        },
-
-        set value(newValue) {
-            if (typeof newValue !== dataType) {
-                throw new TypeError(`Value type must remain ${dataType}`);
-            }
-            this._value = newValue;
-            if (dataType === "object" && newValue !== null) {
-                Object.assign(this, newValue);
-            }
-        },
-        setValue(newValue) {
-            print("Setting Value ", newValue)
-            if (typeof newValue !== dataType) {
-                throw new TypeError(`Value type must remain ${dataType}`);
-            }
-            this._value = newValue;
-            if (dataType === "object" && newValue !== null) {
-                Object.assign(this, newValue);
-            }
-        },
-        _internalValueOf() {
-            return ref._value
-        },
-        _isStateVariable() {
-            return true;
-        },
-        [Symbol.toPrimitive](hint) {
-            return typeof ref._value === "object" ? NaN : ref._value;
-        },
-        toString() {
-            return ref._value.toString()
-        }
-    });
-
-    if (dataType === "object" && initialValue !== null) {
-        Object.assign(ref, initialValue);
-    }
-
-    return ref;
-}
-
-function createRef(initialValue,stateVariable=true) {
+function createRef(initialValue, stateVariable = true) {
     const VALUE_KEY = Symbol('stateValue');
     const container = {
         [VALUE_KEY]: initialValue,
@@ -81,12 +10,13 @@ function createRef(initialValue,stateVariable=true) {
 
     const handler = {
         get(target, prop, receiver) {
+            print("Get called")
             // Handle special properties
             if (prop === 'value' || prop === '_internalValueOf') return target[VALUE_KEY];
             if (prop === 'setValue') return (newValue) => {
                 target[VALUE_KEY] = newValue
             };
-            if (prop === '_isStateVariable') return  stateVariable;
+            if (prop === '_isStateVariable') return stateVariable;
 
             // Handle value coercion
             if (prop === Symbol.toPrimitive) {
@@ -130,210 +60,226 @@ function createRef(initialValue,stateVariable=true) {
             throw new TypeError("Proxy value is not a constructor");
         },
 
+        // Add trap for Object.keys, Object.entries, etc.
+        ownKeys(target) {
+            const value = target[VALUE_KEY];
+            if (typeof value === 'object' && value !== null) {
+                return Reflect.ownKeys(value);
+            }
+            return [];
+        },
+
+        // Add trap for property descriptors
+        getOwnPropertyDescriptor(target, prop) {
+            const value = target[VALUE_KEY];
+            if (typeof value === 'object' && value !== null) {
+                return Reflect.getOwnPropertyDescriptor(value, prop);
+            }
+            return undefined;
+        },
+
         // Add other necessary traps
         getPrototypeOf() {
             return Reflect.getPrototypeOf(container[VALUE_KEY]);
         },
 
         has(target, prop) {
+            if (prop === "_isStateVariable") {
+                return true;
+            }
             return Reflect.has(container[VALUE_KEY], prop);
+        },
+        spread() {
+            return {...container[VALUE_KEY]};
+        },
+
+        // Support for Object spread {...obj}
+        defineProperty(target, prop, descriptor) {
+            if (typeof target[VALUE_KEY] === 'object' && target[VALUE_KEY] !== null) {
+                return Reflect.defineProperty(target[VALUE_KEY], prop, descriptor);
+            }
+            return false;
         }
     };
 
     return new Proxy(container, handler);
 }
 
-function ParentComponent() {
-    beginComponentInit();
-    const [state, setState] = useState({
-        numbers: [1, 2, 3, 4]
-    });
-    {
+let c = createRef({})
+c._internalValueOf = true;
+let d = [1, c]
 
-        const _parent2 = createElement("component", {
-            style: {
-                color: "#ff0",
-                display: "flex"
+function _slicedToArray(r, e) {
+    return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest();
+}
+
+function _nonIterableRest() {
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+}
+
+function _unsupportedIterableToArray(r, a) {
+    if (r) {
+        if ("string" == typeof r) return _arrayLikeToArray(r, a);
+        var t = {}.toString.call(r).slice(8, -1);
+        return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0;
+    }
+}
+
+function _arrayLikeToArray(r, a) {
+    (null == a || a > r.length) && (a = r.length);
+    for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
+    return n;
+}
+
+function _iterableToArrayLimit(r, l) {
+    var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
+    if (null != t) {
+        var e, n, i, u, a = [], f = !0, o = !1;
+        try {
+            if (i = (t = t.call(r)).next, 0 === l) {
+                if (Object(t) !== t) return;
+                f = !1;
+            } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0) ;
+        } catch (r) {
+            o = !0, n = r;
+        } finally {
+            try {
+                if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return;
+            } finally {
+                if (o) throw n;
             }
+        }
+        return a;
+    }
+}
+
+function _arrayWithHoles(r) {
+    if (Array.isArray(r)) return r;
+}
+
+function TaskBoard() {
+    beginComponentInit("guaLtoio");
+
+    var _useState = useState({
+            todo: ['Buy milk', 'Write blog'],
+            doing: ['Learn React'],
+            done: []
+        }),
+        _useState2 = _slicedToArray(_useState, 2),
+        columns = _useState2[0],
+        setColumns = _useState2[1];
+    var _useState3 = useState(''),
+        _useState4 = _slicedToArray(_useState3, 2),
+        newTask = _useState4[0],
+        setNewTask = _useState4[1];
+    var handleAddTask = () => {
+        if (!newTask.trim()) return;
+
+        setColumns(prev => {
+            print("Items", [...prev.todo, newTask])
+            return ({
+                ...prev,
+                todo: [...prev.todo, newTask]
+            })
         });
+        setNewTask('');
+    };
+    var moveTask = (task, from, to) => {
+        setColumns(prev => {
+            const newFrom = prev[from].filter(t => t !== task);
+            const newTo = [...prev[to], task];
 
-        const _element = createElement("text", {});
-        _element.addText("Parent Component");
-        _parent2.addChild(_element);
-
-        effect(() => {
-            const _element2 = {
-                $$internalComponent: false,
-                component: ChildComponent,
-                props: ({
-                    numbers: state.numbers,
-                    children: []
-                }),
-
+            return {
+                ...prev,
+                [from]: newFrom,
+                [to]: newTo
             };
-            _parent2.insertChild("MTJgvvRR", _element2);
-        }, [state]);
-
-        const _element3 = createElement('button', {
-            onClick: () => setState("numbers", n => [...n, n.length + 1])
         });
-        const _element3Text = createElement("text", {});
-        _element3Text.addText("                Add Number ");
-        _element3.addChild(_element3Text)
-        effect(() => {
-            _element3Text.insertChild("dPwEOeiD", state);
-            //print(state.value.numbers)
-        }, [state]);
-
-        effect(() => {
-            // print("Called empty value")
-        }, [state])
-        _parent2.addChild(_element3);
-
-        endComponent();
-        return _parent2;
-    }
-}
-
-function ChildComponent({
-                            numbers, children
-                        }) {
-    beginComponentInit();
-    const doubledNumbers = numbers
-    {
-        const _parent4 = createElement("component", {});
-        _parent4.addStaticChild({
-            $$internalComponent: true,
-            component: "text",
-            props: {
-                children: [
-                    "Child Component"
-                ]
-            },
-            id: "myDearID"
-        });
-        effect(() => {
-            const _element5 = {
-                $$internalComponent: false,
-                component: GrandChildComponent,
-                props: {
-                    data: doubledNumbers,
-                    children: [
-                        {
-                            $$internalComponent: true,
-                            component: "text",
-                            props: {
-                                children: ["Came as a child"]
-
-                            }
-                        }
-                    ]
-                },
-                id: "zUblYAq"
-            }
-            _parent4.insertChild("zUblYAq", _element5);
-        }, [doubledNumbers]);
-        endComponent();
-        return _parent4;
-    }
-}
-
-function GrandChildComponent() {
-    beginComponentInit();
-    const [names, setNames] = useState(["ALi"]);
-    {
-        const _parent5 = createElement("component", {});
-        _parent5.addStaticChild({
-            $$internalComponent: true,
-            component: "text",
-            props: {
-                children: [
-                    "GrandChild Component"
-                ]
-            },
-            id: "dearchildID"
-        });
-
-        const _element7 = createElement("text", {});
-        //createParentBase
-        const _parentBase = createElement("component", {});
-        effect(() => {
-            listConciliar(_parentBase, names, (value, index) => {
-
-                return {
-                    props: {
-                        children: [{
-                            $$internalComponent: true,
-                            component: "text",
-                            props: {
-                                children: ["Hello from internal sub component"]
-                            },
-                            id: "IDKIJUSTGOTHERE"
-                        }],
-                        name: value
-                    },
-                    $$internalComponent: false,
-                    component: Test,
-                    key: index, //That would make accessing it easier.
-
-
-                }
-            });
-
-        }, [names]);
-        effect(() => {
-            setNames((prev) => [...prev, "Ali", "Emad", "Hassan"])
-        }, [names])
-        _parent5.addChild(_element7);
-        _parent5.addChild(_parentBase);
-        endComponent();
-        return _parent5;
-    }
-}
-
-function Test({children, name}) {
-    beginComponentInit();
-    const [counter, setCounter] = useState(1);
-    const _parent5 = createElement("component", {});
-    _parent5.insertChildren(children)
+    };
     effect(() => {
-        const _element5 = {
-            $$internalComponent: true,
-            component: "text",
-            props: {
-                children: [
-                    name
-                ]
+        setNewTask("3lawy")
+
+    }, [])
+    effect(() => {
+        handleAddTask()
+    }, [newTask])
+    {
+        var _parent = createElement("div", {
+            style: {
+                display: 'flex',
+                gap: '1rem'
+            }
+        });
+        var _mapParent = createElement("component", {});
+        effect(() => {
+            print("Column Keys", columns['todo'])
+            listConciliar(_mapParent, Object.keys(columns), (col, _index) => ({
+                "$$internalComponent": true,
+                "component": "div",
+                "props": {
+                    key: col,
+                    style: {
+                        border: '1px solid #ccc',
+                        padding: '1rem',
+                        width: '200px'
+                    },
+                    "children": [{
+                        "$$internalComponent": true,
+                        "component": "text",
+                        "props": {
+                            "children": [col.toUpperCase()]
+                        },
+                        "id": "PGhPdRNm"
+                    }, ...columns[col].map(task => ({
+                        "$$internalComponent": true,
+                        "component": "div",
+                        "props": {
+                            key: task,
+                            style: {
+                                marginBottom: '0.5rem'
+                            },
+                            "children": [{
+                                "$$internalComponent": true,
+                                "component": "text",
+                                "props": {
+                                    "children": [task]
+                                },
+                                "id": "LYnNSJCJ"
+                            }]
+                        },
+                        "id": "1twSLwZf"
+                    }))]
+                },
+                "id": "eyfQ7mK3"
+            }));
+        }, [columns]);
+        _parent.addChild(_mapParent);
+        var _element4 = createElement("div", {});
+        effect(() => {
+            _element4.insertChild("cbRvNlP3", {
+                "$$internalComponent": true,
+                "component": "component",
+                "props": {
+                    value: newTask,
+                    onChange: e => setNewTask(e.target.value),
+                    "children": []
+                },
+                "id": "mk7KGhg7"
+            });
+        }, []);
+        _element4.addStaticChild({
+            "$$internalComponent": true,
+            "component": "button",
+            "props": {
+                onClick: handleAddTask,
+                "children": []
             },
-            id: "leloID"
-        }
-
-        _parent5.insertChild("leloID", _element5);
-    }, [name])
-
-    _parent5.addStaticChild({
-        $$internalComponent: true,
-        component: "component",
-        props: {
-            children: [
-                {
-                    $$internalComponent: true,
-                    component: "text",
-                    props: {
-                        children: [
-                            "I am static child my friend"
-                        ]
-                    }
-                }
-            ],
-            id: "broI am happy"
-        }
-
-    })
-    endComponent();
-    return _parent5;
+            "id": "wdn7e03"
+        });
+        _parent.addChild(_element4);
+        endComponent();
+        return _parent;
+    }
 }
-render(ParentComponent)
 
-//gc();
-shutdown()
+render(TaskBoard)

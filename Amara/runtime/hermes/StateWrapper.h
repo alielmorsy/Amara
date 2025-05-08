@@ -9,10 +9,11 @@ typedef std::unique_ptr<StateWrapper> StateWrapperRef;
 
 class StateWrapper {
 private:
-    Runtime &rt;
+
     Value value;
 
 public:
+    Runtime &rt;
     explicit StateWrapper(Runtime &rt, Value value) : rt(rt),
                                                       value(std::move(value)) {
     };

@@ -23,11 +23,11 @@ void Widget::parseStyle() {
         widgetStyle.display = parseDisplay(style->getString("display"));
     }
     if (style->has("width")) {
-        auto width = propMap->getString("width");
+        auto width = style->getString("width");
         widgetStyle.width = parseCSSValue(width);
     }
     if (style->has("height")) {
-        auto height = propMap->getString("height");
+        auto height = style->getString("height");
         widgetStyle.height = parseCSSValue(height);
     }
     if (style->has("margin")) {

@@ -32,6 +32,9 @@ public:
 
     JSI_FUNCTION(insertChildren);
 
+    // For holder widget only
+    JSI_FUNCTION(setChild);
+
     SharedWidget getNativeWidget() const;
 
 private:

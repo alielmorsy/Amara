@@ -93,7 +93,9 @@ Value HermesEngine::useStateImpl(const Value &value) {
     });
 
 
-    auto setter = [this,func=std::move(func)](Runtime &rt, const Value &thisValue, const Value *args, const size_t count) {
+    auto setter = [this,func=std::move(func)](Runtime &rt, const Value &thisValue, const Value *args,
+                                              const size_t count) {
+        std::cout << "I am here";
         if (count != 1) {
             throw JSINativeException("setState requires exactly one argument");
         }
@@ -122,6 +124,8 @@ std::shared_ptr<Widget> HermesEngine::createComponent(std::string &type,
         widget = pool.allocate<ImageWidget>(std::move(propsMap), contextStack.top());
     } else if (type == "button") {
         widget = pool.allocate<ButtonWidget>(std::move(propsMap), contextStack.top());
+    } else if (type == "holder") {
+        widget = pool.allocate<HolderWidget>(std::move(propsMap), contextStack.top());
     } else {
         throw JSError(*runtime, "Unknown component type: " + type);
     }
@@ -149,9 +153,8 @@ void HermesEngine::render(const Value &value) {
     nextIterationComponents.clear();
     std::cout << "Initial render done" << std::endl;
     for (int i = 0; i < 3; i++) {
-        auto iter = new ScopedTimer("Iteration " + std::to_string(i));
         if (!componentsToBeUpdated.empty()) {
-            //     rootWidget->printTree();
+            rootWidget->printTree();
         }
         std::sort(componentsToBeUpdated.begin(), componentsToBeUpdated.end(),
                   [](const std::shared_ptr<ComponentContext> &first, const std::shared_ptr<ComponentContext> &second) {
@@ -174,7 +177,6 @@ void HermesEngine::render(const Value &value) {
         for (auto &element: componentsToBeUpdated) {
             element->markDirty();
         }
-        delete iter;
     }
     rootWidget->printTree();
 }
@@ -253,7 +255,7 @@ void HermesEngine::installFunctions() {
                            return Value::undefined();
                            });
 
-    DEFINE_GLOBAL_FUNCTION("beginComponentInit", 0,
+    DEFINE_GLOBAL_FUNCTION("beginComponentInit", 1,
                            [this](Runtime &rt, const Value &thisVal, const Value *args, size_t count) -> Value {
                            beginComponentImpl();
                            return Value::undefined();
@@ -287,11 +289,11 @@ void HermesEngine::shutdown() {
 }
 
 std::unique_ptr<WidgetHolder> HermesEngine::getWidgetHolder(StateWrapperRef &widgetVariable) {
-    auto val = widgetVariable->getValue();
-    return getWidgetHolder(std::move(val));
+    const auto val = widgetVariable->getValue();
+    return getWidgetHolder(val);
 }
 
-std::unique_ptr<WidgetHolder> HermesEngine::getWidgetHolder(Value value) {
+std::unique_ptr<WidgetHolder> HermesEngine::getWidgetHolder(const Value &value) {
     auto &rt = *runtime;
     Object obj = value.asObject(rt);
     const auto isInternal = obj.getProperty(rt, "$$internalComponent").asBool();

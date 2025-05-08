@@ -5,8 +5,7 @@
 #define FALLBACK_IF if (!has(key)) return std::move(defaultValue)
 
 std::string HermesPropMap::getString(const std::string &key, const std::string &defaultValue) const {
-
-    auto val=get(key);
+    auto val = get(key);
     if (val.isNumber()) {
         return std::to_string(value->asNumber());
     }
@@ -14,7 +13,6 @@ std::string HermesPropMap::getString(const std::string &key, const std::string &
 }
 
 bool HermesPropMap::getBool(const std::string &key, bool defaultValue) const {
-
     return get(key).asBool();
 }
 
@@ -37,7 +35,7 @@ std::unique_ptr<void, void(*)(void *)> HermesPropMap::getFunction(const std::str
 }
 
 double HermesPropMap::getNumber(const std::string &key, double defaultValue) const {
-   // FALLBACK_IF;
+    // FALLBACK_IF;
     auto value = get(key);
     if (value.isString()) {
         try {
@@ -53,7 +51,7 @@ double HermesPropMap::getNumber(const std::string &key, double defaultValue) con
 
 bool HermesPropMap::has(const std::string &key) const {
     //ScopedTimer timer;
-    return obj.hasProperty(runtime, PropNameID::forAscii(runtime, key));
+    return obj.hasProperty(runtime, key.c_str());
 }
 
 std::unique_ptr<PropMap> HermesPropMap::getObject(const std::string &key) const {

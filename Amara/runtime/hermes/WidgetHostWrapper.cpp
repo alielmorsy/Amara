@@ -104,7 +104,7 @@ Value WidgetHostWrapper::addStaticChild(Runtime &rt, const Value *args, size_t c
     if (!containerWidget) {
         throw JSError(rt, "You cannot use addChild over a non container widget");
     }
-    auto holder = engine->getWidgetHolder(Value(rt, args[0]));
+    auto holder = engine->getWidgetHolder(args[0]);
 
     containerWidget->addStaticChild(engine, std::move(holder));
     return Value::undefined();
@@ -133,10 +133,10 @@ Value WidgetHostWrapper::insertChild(Runtime &rt, const Value *args, size_t coun
         throw JSError(rt, "You cannot use insertChild over a non container widget");
     }
     if (args[1].isObject()) {
-        auto holder = engine->getWidgetHolder(Value(rt, args[1]));
+        auto holder = engine->getWidgetHolder(args[1]);
 
         containerWidget->insertChild(engine, std::move(id), std::move(holder));
-        int x=0;
+        int x = 0;
     } else {
         //State variable
     }
@@ -160,6 +160,15 @@ Value WidgetHostWrapper::insertChildren(Runtime &rt, const Value *args, size_t c
         holderContainer->addChild(w);
     }
     containerWidget->addChild(holder);
+    return Value::undefined();
+}
+
+Value WidgetHostWrapper::setChild(Runtime &rt, const Value *args, size_t count) {
+    auto widget = nativeWidget.lock();
+    assert(widget->is<HolderWidget>() && "Widget is not a container widget");
+    auto holderWidget = widget->as<HolderWidget>();
+    auto widgetHolder = engine->getWidgetHolder(args[0]);
+    holderWidget->setChild(widgetHolder->execute(engine));
     return Value::undefined();
 }
 

@@ -28,15 +28,24 @@ std::tuple<StateWrapper *, SetStateFunction> ComponentContext::useState(std::uni
             ](std::unique_ptr<StateWrapper> newValue) {
         auto &state = states[currentIndex];
         // Using the pointer directly as we cannot pass the unique pointer inside.
+        std::unique_ptr<StateWrapper> valueToUse;
         if (newValue->getValueRef().isObject()) {
+            auto obj = newValue->getValueRef().asObject(newValue->rt);
+            if (obj.isFunction(newValue->rt)) {
+                valueToUse = newValue->call(state.object->getInternalValue()->getValue());
+            } else {
+                valueToUse = std::move(newValue);
+            }
+        } else {
+            valueToUse = std::move(newValue);
         }
-        if (state.object->equals(newValue.get())) {
+        if (state.object->equals(valueToUse.get())) {
             return;
         }
 
         //Notify parent if needed
         notifier();
-        toBeUpdated[currentIndex] = std::move(newValue);
+        toBeUpdated[currentIndex] = std::move(valueToUse);
         dirty = true;
     };
 

@@ -149,7 +149,7 @@ public:
         cout << prefix;
 
         if (!prefix.empty()) {
-            cout <<  "|----- ";
+            cout << "|----- ";
         }
 
         cout << getValue() << endl;
@@ -271,5 +271,38 @@ public:
 private:
     std::unordered_map<std::string, size_t> insertedChildren;
     std::vector<std::string> children;
+};
+
+class HolderWidget : public Widget {
+protected:
+    std::string getValue() override {
+        return "Widget Holder";
+    };
+
+public:
+    explicit HolderWidget(std::unique_ptr<PropMap> propMap,
+                          std::shared_ptr<ComponentContext> component): Widget(
+        std::move(propMap), std::move(component), WidgetType::TEXT) {
+    }
+
+    std::shared_ptr<Widget> child;
+
+    void goReset() override {
+        child.reset();
+    };
+
+    void setChild(std::shared_ptr<Widget> child) {
+        this->child = child;
+    }
+
+    void printTree(std::string prefix, bool isLast) override {
+        cout << prefix;
+
+        if (!prefix.empty()) {
+            cout << (isLast ? "|----- " : "|     ");
+        }
+        child->printTree(prefix + (isLast ? "      " : "|     "));
+        cout << getValue() << endl;
+    };
 };
 #endif //WIDGET_H

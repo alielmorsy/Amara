@@ -11,7 +11,8 @@ using namespace facebook::jsi;
 
 class HermesArray : public AmaraArray {
 public:
-    HermesArray(Runtime &rt, Value arr) : arr(arr.asObject(rt).asArray(rt)), rt(rt) {
+    HermesArray(Runtime &rt, Value arr)
+        : arr(resolveArray(rt, std::move(arr))), rt(rt) {
     }
 
     size_t size() override;
@@ -21,6 +22,16 @@ public:
     ~HermesArray() override = default;
 
 private:
+    Array resolveArray(Runtime &rt, Value val) {
+        auto obj = val.asObject(rt);
+        if (obj.isFunction(rt)) {
+            return obj.asFunction(rt).call(rt).asObject(rt).asArray(rt);
+        } else {
+            auto arr = obj.asArray(rt);
+            return arr;
+        }
+    }
+
     Array arr;
     Runtime &rt;
 };

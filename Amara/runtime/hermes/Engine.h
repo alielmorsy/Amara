@@ -58,7 +58,7 @@ public:
     void shutdown() override;
 
     std::unique_ptr<WidgetHolder> getWidgetHolder(StateWrapperRef &widgetVariable) override;
-    std::unique_ptr<WidgetHolder> getWidgetHolder(Value value);
+    std::unique_ptr<WidgetHolder> getWidgetHolder(const Value &value);
 
 
 private:
