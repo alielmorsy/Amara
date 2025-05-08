@@ -10,6 +10,9 @@ export type JSXPath = NodePath<t.JSXElement>
 export interface FunctionScope {
     variables: Set<string>;
     specialFlags: Record<string, boolean>
+    innerFunctions: Array<{
+        scopedVariables: Set<string>;
+    }>
 }
 
 export type LiteralType = string | number | boolean
