@@ -130,7 +130,9 @@ function _arrayLikeToArray(r, a) {
     for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
     return n;
 }
-
+function toRaw(value) {
+    return value._isStateVariable ? value.value : value
+}
 function _iterableToArrayLimit(r, l) {
     var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
     if (null != t) {
@@ -176,10 +178,10 @@ function TaskBoard() {
         if (!newTask.trim()) return;
 
         setColumns(prev => {
-            print("Items", [...prev.todo, newTask])
+            print("Items", [...prev.todo, toRaw(newTask)])
             return ({
                 ...prev,
-                todo: [...prev.todo, newTask]
+                todo: [...prev.todo, toRaw(newTask)]
             })
         });
         setNewTask('');
