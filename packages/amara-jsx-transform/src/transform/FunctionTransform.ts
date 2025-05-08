@@ -26,6 +26,7 @@ export function processFunc(path: BabelFunction) {
     }
     const funcState: FunctionScope = {
         variables: new Set<string>(),
+        specialFlags: {}
     }
     path.node.params.forEach(param => {
         if (t.isIdentifier(param)) {
@@ -93,7 +94,7 @@ export function processFunc(path: BabelFunction) {
             const result = handleJsxElement(path, funcState);
             // This case shouldn't happen
             if (result.statements.length !== 0) {
-          //      throw new Error("Statement return with handling  " + JSON.stringify(path.node.openingElement.name))
+                //      throw new Error("Statement return with handling  " + JSON.stringify(path.node.openingElement.name))
             }
             path.skip()
 

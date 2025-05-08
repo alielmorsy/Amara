@@ -4,7 +4,7 @@ import {
 
     createObjectProperty, ensureReturnInMapCallback,
     extractMapInfo,
-    generateShortId,
+    generateShortId, getJsxElementName,
     getPropertyKey,
     INTERNAL_COMPONENTS,
     isMapExpression, MapInfo
@@ -14,7 +14,7 @@ import {Identifier} from "@babel/types";
 
 export function createMapHandler(mapInfo: MapInfo, parentPath: NodePath, funcState: FunctionScope, parentElement: t.Identifier, path: NodePath): t.ExpressionStatement {
     const {array, callback, itemParam, indexParam, stateDependency, stateVars} = mapInfo;
-
+    funcState.specialFlags.insideMapHandler = true;
     // If state dependent, use listConcile with effect
     if (stateDependency || stateVars.length > 0) {
         // Create a modified callback that returns an appropriate object structure
@@ -68,7 +68,7 @@ export function createMapHandler(mapInfo: MapInfo, parentPath: NodePath, funcSta
                 t.arrayExpression(Array.from(allDeps))
             ]
         );
-
+        funcState.specialFlags.insideMapHandler = false;
         return t.expressionStatement(effectCall);
     } else {
         // For completely static maps (no state dependencies),
@@ -86,7 +86,7 @@ export function createMapHandler(mapInfo: MapInfo, parentPath: NodePath, funcSta
             t.memberExpression(parentElement, t.identifier("addChildren")),
             [mapCall]
         );
-
+        funcState.specialFlags.insideMapHandler = false;
         return t.expressionStatement(addChildrenCall);
     }
 }
@@ -203,37 +203,12 @@ function processAttrs(
     return [props, dynamicUpdates];
 }
 
-/**
- * Extract the tag name from a JSX opening element
- */
-function getJsxElementName(openingElement: t.JSXOpeningElement): string {
-    const nameNode = openingElement.name;
-    if (t.isJSXIdentifier(nameNode)) {
-        return nameNode.name;
-    } else if (t.isJSXMemberExpression(nameNode)) {
-        // For JSX member expressions like Namespace.Component
-        let fullName = '';
-        let current: t.JSXMemberExpression | t.JSXIdentifier = nameNode;
-
-        while (t.isJSXMemberExpression(current)) {
-            fullName = '.' + current.property.name + fullName;
-            current = current.object;
-        }
-
-        if (t.isJSXIdentifier(current)) {
-            fullName = current.name + fullName;
-        }
-
-        return fullName;
-    }
-
-    throw new Error(`Unsupported JSX element name type: ${openingElement.name.type}`);
-}
 
 //returns true if the component is static component
 interface JsxResult {
-    expression: t.Expression | null;
+    expression: t.Expression | t.SpreadElement | null;
     statements: t.Statement[];
+    deps?: t.Expression[]
 }
 
 /**
@@ -562,18 +537,24 @@ export function handleJsxElement(
                 // Handle empty expression by using an empty string literal
                 childrenResults.push({expression: t.stringLiteral(""), statements: []});
             } else if (t.isCallExpression(exp) && isMapExpression(exp)) {
-                forceStatic = originalForceStatic;
-                const mapParent = path.scope.generateUidIdentifier("mapParent");
-                const mapInfo = extractMapInfo(exp as t.CallExpression, funcState, path);
-                if (mapInfo) {
-                    const createCall = t.callExpression(t.identifier("createMapContainer"), []);
-                    const declaration = t.variableDeclaration('const', [
-                        t.variableDeclarator(mapParent, createCall)
-                    ]);
-                    const mapHandler = createMapHandler(mapInfo, path.get('children')[index], funcState, mapParent, path);
-                    const statements = [declaration, mapHandler];
-                    childrenResults.push({expression: mapParent, statements});
+                if (funcState.specialFlags.insideMapHandler) {
+                    const a = t.spreadElement(exp);
+                    childrenResults.push({expression: a, statements: []})
+                } else {
+                    forceStatic = originalForceStatic;
+                    const mapParent = path.scope.generateUidIdentifier("mapParent");
+                    const mapInfo = extractMapInfo(exp as t.CallExpression, funcState, path);
+                    if (mapInfo) {
+                        const createCall = t.callExpression(t.identifier("createMapContainer"), []);
+                        const declaration = t.variableDeclaration('const', [
+                            t.variableDeclarator(mapParent, createCall)
+                        ]);
+                        const mapHandler = createMapHandler(mapInfo, path.get('children')[index], funcState, mapParent, path);
+                        const statements = [declaration, mapHandler];
+                        childrenResults.push({expression: mapParent, statements});
+                    }
                 }
+
             }
             // Handle logical expressions (&&) and conditional expressions (ternary)
             else if (t.isLogicalExpression(exp) && exp.operator === '&&' && t.isJSXElement(exp.right)) {
@@ -640,8 +621,9 @@ export function handleJsxElement(
             const effect = t.callExpression(t.identifier("effect"), [arrowFunction, depsExpression]);
             return {expression: holder, statements: [...childrenStatement, t.expressionStatement(effect)]};
         }
-        if (dynamicProps.length === 0 ) {
-            return {expression: staticObject, statements: childrenStatement};
+        const depsArray = dynamicProps.map((v) => t.identifier(v[3]!));
+        if (dynamicProps.length === 0 || forceStatic) {
+            return {expression: staticObject, statements: childrenStatement, deps: depsArray};
         }
         if (parentVariable) {
 
@@ -650,7 +632,7 @@ export function handleJsxElement(
                 staticObject
             ]);
             const arrowFunction = t.arrowFunctionExpression([], t.blockStatement([t.expressionStatement(updater)]));
-            const depsExpression = t.arrayExpression(dynamicProps.map((v) => t.identifier(v[3]!)));
+            const depsExpression = t.arrayExpression(depsArray);
             const effect = t.callExpression(t.identifier("effect"), [arrowFunction, depsExpression]);
             return {expression: null, statements: [...childrenStatement, t.expressionStatement(effect)]};
         }
@@ -703,9 +685,8 @@ export function handleJsxElement(
                 [result.expression]
             );
             statements.push(t.expressionStatement(addCall));
-        } else {
-            statements.push(...result.statements)
         }
+        statements.push(...result.statements)
     });
 
     if (isInReturnStatement) {

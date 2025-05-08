@@ -8,7 +8,8 @@ export type  BabelFunction =
 export type JSXPath = NodePath<t.JSXElement>
 
 export interface FunctionScope {
-    variables: Set<string>
+    variables: Set<string>;
+    specialFlags: Record<string, boolean>
 }
 
 export type LiteralType = string | number | boolean

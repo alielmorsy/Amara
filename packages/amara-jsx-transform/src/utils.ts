@@ -36,35 +36,35 @@ export function isComponentMap(node: t.Node): boolean {
     if (!isMapExpression(node) || !t.isCallExpression(node)) {
         return false;
     }
-    
+
     // Check the callback function of the map
     const mapCallback = node.arguments[0];
     if (!t.isArrowFunctionExpression(mapCallback) && !t.isFunctionExpression(mapCallback)) {
         return false;
     }
-    
+
     // Check the body of the callback
     const body = mapCallback.body;
     if (t.isBlockStatement(body)) {
         // Look for return statements with JSX elements
         for (const stmt of body.body) {
-            if (t.isReturnStatement(stmt) && stmt.argument && 
-                (t.isJSXElement(stmt.argument) || 
-                 (t.isCallExpression(stmt.argument) && 
-                  t.isIdentifier(stmt.argument.callee) && 
-                  /^[A-Z]/.test(stmt.argument.callee.name)))) {
+            if (t.isReturnStatement(stmt) && stmt.argument &&
+                (t.isJSXElement(stmt.argument) ||
+                    (t.isCallExpression(stmt.argument) &&
+                        t.isIdentifier(stmt.argument.callee) &&
+                        /^[A-Z]/.test(stmt.argument.callee.name)))) {
                 return true;
             }
         }
         return false;
-    } else if (t.isJSXElement(body) || 
-              (t.isCallExpression(body) && 
-               t.isIdentifier(body.callee) && 
-               /^[A-Z]/.test(body.callee.name))) {
+    } else if (t.isJSXElement(body) ||
+        (t.isCallExpression(body) &&
+            t.isIdentifier(body.callee) &&
+            /^[A-Z]/.test(body.callee.name))) {
         // Direct return of a JSX element or component call
         return true;
     }
-    
+
     return false;
 }
 
@@ -117,6 +117,17 @@ export function containsStateGetterCall(node: t.Node, functionScope: FunctionSco
                     hasStateGetter = node.property.name;
                     path.stop(); // Stop traversal once found
                 }
+            },
+            CallExpression(path) {
+                const node = path.node;
+                if (t.isIdentifier(node.callee)) {
+                    const name = node.callee.name;
+                    if (functionScope.variables.has(name)) {
+                        hasStateGetter = name;
+                        path.stop(); // Stop traversal once found
+                    }
+                    return
+                }
             }
         });
     } catch (e) {
@@ -140,7 +151,7 @@ export interface MapInfo {
 
 export function extractMapInfo(mapExpr: t.CallExpression, functionScope: FunctionScope, path: NodePath): MapInfo | null {
     try {
-        const array = (mapExpr.callee as t.MemberExpression).object as t.Expression;
+        const array = mapExpr.callee;
         const callback = mapExpr.arguments[0] as t.ArrowFunctionExpression | t.FunctionExpression;
 
         if (!callback || (!t.isArrowFunctionExpression(callback) && !t.isFunctionExpression(callback))) {
@@ -158,7 +169,7 @@ export function extractMapInfo(mapExpr: t.CallExpression, functionScope: Functio
         const stateVars: string[] = findAvailableVariables(callback.body, functionScope, path);
 
         return {
-            array,
+            array: array as t.Expression,
             callback,
             itemParam,
             indexParam,
@@ -262,7 +273,6 @@ export function ensureReturnInMapCallback(callback: t.ArrowFunctionExpression): 
 }
 
 
-
 function transformExpressionToObject(expr: t.Expression, valueParam: t.Identifier, indexParam: t.Identifier): t.Expression {
     if (t.isJSXElement(expr)) {
         // Extract key from JSX if available
@@ -335,4 +345,31 @@ function transformCallbackToObject(body: t.BlockStatement, valueParam: t.Identif
         createObjectProperty("id", t.stringLiteral(generateShortId())),
         createObjectProperty("key", indexParam)
     ]);
+}
+
+/**
+ * Extract the tag name from a JSX opening element
+ */
+export function getJsxElementName(openingElement: t.JSXOpeningElement): string {
+    const nameNode = openingElement.name;
+    if (t.isJSXIdentifier(nameNode)) {
+        return nameNode.name;
+    } else if (t.isJSXMemberExpression(nameNode)) {
+        // For JSX member expressions like Namespace.Component
+        let fullName = '';
+        let current: t.JSXMemberExpression | t.JSXIdentifier = nameNode;
+
+        while (t.isJSXMemberExpression(current)) {
+            fullName = '.' + current.property.name + fullName;
+            current = current.object;
+        }
+
+        if (t.isJSXIdentifier(current)) {
+            fullName = current.name + fullName;
+        }
+
+        return fullName;
+    }
+
+    throw new Error(`Unsupported JSX element name type: ${openingElement.name.type}`);
 }
