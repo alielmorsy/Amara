@@ -36,7 +36,7 @@ export function createMapHandler(mapInfo: MapInfo, parentPath: NodePath, funcSta
 
         // Create listConcile call
         const concileCall = t.callExpression(
-            t.identifier("listConcile"),
+            t.identifier("listConciliar"),
             [
                 parentElement,
                 array,
@@ -545,7 +545,7 @@ export function handleJsxElement(
                     const mapParent = path.scope.generateUidIdentifier("mapParent");
                     const mapInfo = extractMapInfo(exp as t.CallExpression, funcState, path);
                     if (mapInfo) {
-                        const createCall = t.callExpression(t.identifier("createElement"), [t.stringLiteral('container'), t.objectExpression([])]);
+                        const createCall = t.callExpression(t.identifier("createElement"), [t.stringLiteral('component'), t.objectExpression([])]);
                         const declaration = t.variableDeclaration('const', [
                             t.variableDeclarator(mapParent, createCall)
                         ]);

@@ -151,7 +151,7 @@ export interface MapInfo {
 
 export function extractMapInfo(mapExpr: t.CallExpression, functionScope: FunctionScope, path: NodePath): MapInfo | null {
     try {
-        const array = mapExpr.callee;
+        const array = (mapExpr.callee as t.MemberExpression).object as t.Expression;
         const callback = mapExpr.arguments[0] as t.ArrowFunctionExpression | t.FunctionExpression;
 
         if (!callback || (!t.isArrowFunctionExpression(callback) && !t.isFunctionExpression(callback))) {
