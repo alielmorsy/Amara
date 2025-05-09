@@ -130,9 +130,11 @@ function _arrayLikeToArray(r, a) {
     for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
     return n;
 }
+
 function toRaw(value) {
     return value._isStateVariable ? value.value : value
 }
+
 function _iterableToArrayLimit(r, l) {
     var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
     if (null != t) {
@@ -218,6 +220,7 @@ function TaskBoard() {
             listConciliar(_mapParent, Object.keys(columns), (col, _index) => ({
                 "$$internalComponent": true,
                 "component": "div",
+                key: col,
                 "props": {
                     key: col,
                     style: {

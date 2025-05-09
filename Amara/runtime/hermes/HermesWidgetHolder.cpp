@@ -11,7 +11,7 @@ std::shared_ptr<Widget> HermesWidgetHolder::execute(IEngine *engine) {
     if (isInternal) {
         assert(componentName.has_value() && "Component marked as internal but without component Name");
         auto arr = props->asObject(rt).getProperty(rt, "children").asObject(rt).asArray(rt);
-        auto widget = engine->createComponent(componentName.value(), *props);
+        auto widget = engine->createComponent(componentName.value(), Value(rt, *props));
         if (widget->is<TextWidget>()) {
             auto textWidget = widget->as<TextWidget>();
             for (int i = 0; i < arr.size(rt); ++i) {

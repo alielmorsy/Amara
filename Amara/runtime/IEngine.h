@@ -12,7 +12,7 @@ public:
 
     virtual void endComponentImpl() =0;
 
-    virtual std::shared_ptr<Widget> createComponent(std::string &type, const Value &props) =0;
+    virtual std::shared_ptr<Widget> createComponent(std::string &type, Value &&props) =0;
 
     virtual void installFunctions() =0;
 

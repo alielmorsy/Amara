@@ -7,7 +7,7 @@
 std::string HermesPropMap::getString(const std::string &key, const std::string &defaultValue) const {
     auto val = get(key);
     if (val.isNumber()) {
-        return std::to_string(value->asNumber());
+        return std::to_string(val.asNumber());
     }
     return val.asString(runtime).utf8(runtime);
 }
@@ -59,7 +59,7 @@ std::unique_ptr<PropMap> HermesPropMap::getObject(const std::string &key) const 
     if (!value.isObject()) {
         return nullptr;
     }
-    return std::make_unique<HermesPropMap>(runtime, std::make_shared<Value>(runtime, value));
+    return std::make_unique<HermesPropMap>(runtime, std::move(value));
 }
 
 Value HermesPropMap::get(const std::string &key) const {

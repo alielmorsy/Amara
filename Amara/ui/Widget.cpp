@@ -174,11 +174,18 @@ void ContainerWidget::addChild(std::shared_ptr<Widget> &widget) {
 void ContainerWidget::addStaticChild(IEngine *engine, std::unique_ptr<WidgetHolder> widget) {
     if (_component->reconciliationStarted()) {
         auto oldComponent = _component->reconcilingObject.lock();
-        size_t oldIndex = oldComponent->staticChildren[widget->getID()];
-        _children.emplace_back(oldComponent->_children[oldIndex]);
-        //If reconciliation started, we won't recreate the component we are fine with the current added one.
-        return;
+        if (oldComponent && widget->hasID()) {
+            auto it = oldComponent->staticChildren.find(widget->getID());
+            if (it != oldComponent->staticChildren.end()) {
+                size_t oldIndex = it->second;
+                assert(oldIndex < oldComponent->_children.size() && "Static child index out of bounds");
+                _children.emplace_back(std::move(oldComponent->_children[oldIndex]));
+                return;
+            }
+        }
+        // If ID not found or no old component, treat as new static child (fallback)
     }
+    // Initial render or new static child during reconciliation
     auto cmbx = widget->execute(engine);
     if (widget->isComponent()) {
         childrenComponents.emplace_back(cmbx->component());
@@ -192,26 +199,23 @@ void ContainerWidget::addStaticChild(IEngine *engine, std::unique_ptr<WidgetHold
 void ContainerWidget::insertChild(IEngine *engine, std::string id, std::unique_ptr<WidgetHolder> holder) {
     if (_component->reconciliationStarted()) {
         auto reconcileComponent = _component->reconcilingObject.lock();
-        if (reconcileComponent) {
-            if (reconcileComponent->insertedChildren.find(id) != reconcileComponent->insertedChildren.end()) {
-                auto index = reconcileComponent->insertedChildren[id];
-
-                assert(index<reconcileComponent->_children.size() && "Insertion ID has invalid child index");
-                auto newWidget = _component->reconcileObject(
-                    reconcileComponent->_children[index], std::move(holder));
-
-                insertedChildren[id] = _children.size();
-                _children.emplace_back(newWidget);
-                return;
-            }
+        if (reconcileComponent && reconcileComponent->insertedChildren.count(id)) {
+            size_t index = reconcileComponent->insertedChildren[id];
+            assert(index < reconcileComponent->_children.size() && "Insertion ID has invalid child index");
+            auto newWidget = _component->reconcileObject(
+                reconcileComponent->_children[index], std::move(holder));
+            insertedChildren[id] = _children.size();
+            _children.emplace_back(newWidget);
+            return;
         }
+        // If not found in an old component, treat as new child
     }
-normalCase:
-    if (insertedChildren.find(id) == insertedChildren.end()) {
+    // Handle both initial render and new child during reconciliation
+    if (insertedChildren.count(id) == 0) {
         auto widget = holder->execute(engine);
-        _children.emplace_back(widget);
         widget->setParent(weak_from_this());
-        insertedChildren[id] = _children.size() - 1;
+        insertedChildren[id] = _children.size();
+        _children.emplace_back(std::move(widget));
     } else {
         auto newWidget = _component->reconcileObject(_children[insertedChildren[id]], std::move(holder));
         newWidget->setParent(weak_from_this());
@@ -240,6 +244,15 @@ void ContainerWidget::replaceChildren(vector<std::shared_ptr<Widget> > vector) {
     _children = std::move(vector);
 }
 
+void ContainerWidget::insertChild(IEngine *engine, size_t position, std::shared_ptr<Widget> widget) {
+    // Ensure position is within bounds
+    if (position > _children.size()) {
+        position = _children.size();
+    }
+
+
+    _children[position] = std::move(widget);
+}
 
 void TextWidget::insertChild(std::string &id, const std::string &text) {
     children.emplace_back(text);

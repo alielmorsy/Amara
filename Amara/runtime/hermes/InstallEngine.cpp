@@ -5,6 +5,7 @@ using namespace hermes;
 std::unique_ptr<HermesEngine> installEngine() {
     auto runtimeConfig = vm::RuntimeConfig::Builder()
         .withIntl(true)  // Enable internationalization (keep it ON if needed)
+
         .withGCConfig(
             vm::GCConfig::Builder()
                 .withInitHeapSize(512 * 1024)   // Start with a more reasonable heap size (512 KB)

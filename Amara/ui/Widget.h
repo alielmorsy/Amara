@@ -174,6 +174,9 @@ public:
 
     void replaceChildren(vector<std::shared_ptr<Widget> > vector);
 
+    void insertChild(IEngine *engine, size_t position, std::shared_ptr<Widget> widget);
+
+
 protected:
     std::vector<std::shared_ptr<ComponentContext> > childrenComponents;
     std::vector<std::shared_ptr<Widget> > _children;

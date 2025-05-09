@@ -12,12 +12,10 @@ using namespace facebook::jsi;
 
 class HermesPropMap : public PropMap {
 public:
-    HermesPropMap(Runtime &runtime, std::shared_ptr<Value> value): obj(value->asObject(runtime)), runtime(runtime), value(std::move(value)) {
+    HermesPropMap(Runtime &runtime, Value &&value): obj(value.asObject(runtime)), runtime(runtime) {
     }
 
-    ~HermesPropMap() override {
-        value.reset();
-    };
+
 
     double getNumber(const std::string &key, double defaultValue) const override;
 
@@ -37,7 +35,6 @@ public:
 private:
     Object obj;
     Runtime &runtime;
-    std::shared_ptr<Value> value;
 };
 
 

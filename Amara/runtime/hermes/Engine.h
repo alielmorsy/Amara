@@ -27,7 +27,7 @@ public:
 
     ~HermesEngine() override;
 
-    std::shared_ptr<Widget> createComponent(std::string &type, const Value &props) override;
+    std::shared_ptr<Widget> createComponent(std::string &type, Value &&props) override;
 
     void installFunctions() override;
 

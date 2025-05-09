@@ -111,10 +111,8 @@ Value HermesEngine::useStateImpl(const Value &value) {
     );
 }
 
-std::shared_ptr<Widget> HermesEngine::createComponent(std::string &type,
-                                                      const Value &props) {
-    auto propsMap = std::make_unique<HermesPropMap>(*runtime,
-                                                    std::make_shared<Value>(*runtime, props));
+std::shared_ptr<Widget> HermesEngine::createComponent(std::string &type, Value &&props) {
+    auto propsMap = std::make_unique<HermesPropMap>(*runtime, std::move(props));
     SharedWidget widget;
     if (type == "component" || type == "div") {
         widget = pool.allocate<ContainerWidget>(std::move(propsMap), contextStack.top());
@@ -179,6 +177,7 @@ void HermesEngine::render(const Value &value) {
         }
     }
     rootWidget->printTree();
+    rootWidget->resetPointer();
 }
 
 SharedWidget HermesEngine::findSharedWidget(StateWrapperRef &widgetVariable) {
@@ -237,7 +236,7 @@ void HermesEngine::installFunctions() {
                                           }
                                           std::string type = args[0].asString(rt).utf8(rt);
                                           auto &props = args[1];
-                                          auto widget = createComponent(type, props);
+                                          auto widget = createComponent(type, Value(rt, props));
                                           auto wrapper = std::make_shared<WidgetHostWrapper>(this, widget);
                                           Object obj = Object::createFromHostObject(rt, wrapper);
                                           obj.setExternalMemoryPressure(rt, 5 * 1024 * 1024);

@@ -5,7 +5,6 @@
 #include <optional>
 #include <vector>
 
-
 #include "../runtime/hermes/StateWrapper.h"
 #include "../runtime/WidgetHolder.h"
 #include "../runtime/AmaraArray.h"
@@ -43,6 +42,7 @@ private:
 
     struct State {
         StateWrapperRef object;
+        std::vector<std::unique_ptr<StateWrapper> > pendingUpdates;
     };
 
     void _updateStates();
@@ -66,6 +66,9 @@ public:
 
     void effect(StateWrapperRef fn, std::vector<StateWrapperRef> deps);
 
+    void reconcileChildren(std::shared_ptr<ContainerWidget> &shared,
+                           std::shared_ptr<ContainerWidget> &container_widget);
+
     std::shared_ptr<Widget> reconcileObject(const std::shared_ptr<Widget> &old,
                                             std::unique_ptr<WidgetHolder> newCaller);
 
@@ -85,6 +88,7 @@ public:
     std::weak_ptr<ContainerWidget> reconcilingObject;
 
     ~ComponentContext() {
+        widgets.clear();
         int x = 0;
     }
 
