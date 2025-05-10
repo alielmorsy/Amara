@@ -1,8 +1,10 @@
 #ifndef IENGINE_H
 #define IENGINE_H
+#include <complex.h>
 #include <stack>
 
 #include "../utils/WidgetPool.h"
+#include "hermes/HermesPropMap.h"
 
 class IEngine {
 public:
@@ -12,7 +14,7 @@ public:
 
     virtual void endComponentImpl() =0;
 
-    virtual std::shared_ptr<Widget> createComponent(std::string &type, Value &&props) =0;
+    virtual std::shared_ptr<Widget> createComponent(std::string &type, std::unique_ptr<PropMap> propsMap) =0;
 
     virtual void installFunctions() =0;
 
@@ -26,13 +28,15 @@ public:
 
     virtual std::unique_ptr<WidgetHolder> getWidgetHolder(StateWrapperRef &widgetVariable) =0;
 
-    void plugComponent(const std::shared_ptr<ComponentContext>& component) {
+    void plugComponent(const std::shared_ptr<ComponentContext> &component) {
         contextStack.emplace(component);
     }
 
     virtual void unplugComponent() {
         contextStack.pop();
     };
+
+    virtual void compareProps(const std::unique_ptr<PropMap> &old, const std::unique_ptr<PropMap> &newMap) =0;
 
 protected:
     SharedWidget rootWidget;

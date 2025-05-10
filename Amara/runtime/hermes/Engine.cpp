@@ -95,7 +95,6 @@ Value HermesEngine::useStateImpl(const Value &value) {
 
     auto setter = [this,func=std::move(func)](Runtime &rt, const Value &thisValue, const Value *args,
                                               const size_t count) {
-        std::cout << "I am here";
         if (count != 1) {
             throw JSINativeException("setState requires exactly one argument");
         }
@@ -111,8 +110,7 @@ Value HermesEngine::useStateImpl(const Value &value) {
     );
 }
 
-std::shared_ptr<Widget> HermesEngine::createComponent(std::string &type, Value &&props) {
-    auto propsMap = std::make_unique<HermesPropMap>(*runtime, std::move(props));
+std::shared_ptr<Widget> HermesEngine::createComponent(std::string &type, std::unique_ptr<PropMap> propsMap) {
     SharedWidget widget;
     if (type == "component" || type == "div") {
         widget = pool.allocate<ContainerWidget>(std::move(propsMap), contextStack.top());
@@ -149,11 +147,7 @@ void HermesEngine::render(const Value &value) {
     componentsToBeUpdated.insert(componentsToBeUpdated.end(), nextIterationComponents.begin(),
                                  nextIterationComponents.end());
     nextIterationComponents.clear();
-    std::cout << "Initial render done" << std::endl;
     for (int i = 0; i < 3; i++) {
-        if (!componentsToBeUpdated.empty()) {
-            rootWidget->printTree();
-        }
         std::sort(componentsToBeUpdated.begin(), componentsToBeUpdated.end(),
                   [](const std::shared_ptr<ComponentContext> &first, const std::shared_ptr<ComponentContext> &second) {
                       return first->index() < second->index();
@@ -162,7 +156,7 @@ void HermesEngine::render(const Value &value) {
             c->update();
         }
         if (nextIterationComponents.empty()) {
-            std::cout << "ENDED EARLY" << std::endl;
+            std::cout << "ENDED EARLY At iteration" << i << std::endl;
             //       delete iter;
             break;
         }
@@ -236,8 +230,10 @@ void HermesEngine::installFunctions() {
                                           }
                                           std::string type = args[0].asString(rt).utf8(rt);
                                           auto &props = args[1];
-                                          auto widget = createComponent(type, Value(rt, props));
-                                          auto wrapper = std::make_shared<WidgetHostWrapper>(this, widget);
+                                          auto propsMap = std::make_unique<HermesPropMap>(rt, Value(rt,props));
+                                          auto widget = createComponent(
+                                              type, std::move(propsMap));
+                                          const auto wrapper = std::make_shared<WidgetHostWrapper>(this, widget);
                                           Object obj = Object::createFromHostObject(rt, wrapper);
                                           obj.setExternalMemoryPressure(rt, 5 * 1024 * 1024);
                                           return obj;
@@ -294,34 +290,16 @@ std::unique_ptr<WidgetHolder> HermesEngine::getWidgetHolder(StateWrapperRef &wid
 
 std::unique_ptr<WidgetHolder> HermesEngine::getWidgetHolder(const Value &value) {
     auto &rt = *runtime;
-    Object obj = value.asObject(rt);
-    const auto isInternal = obj.getProperty(rt, "$$internalComponent").asBool();
-    std::unique_ptr<WidgetHolder> holder;
-    auto props = obj.getProperty(rt, "props");
-    Key key;
-    if (obj.hasProperty(rt, "key")) {
-        auto keyValue = obj.getProperty(rt, "key");
-        if (keyValue.isString()) {
-            key = std::move(keyValue.asString(rt).utf8(rt));
-        } else if (keyValue.isNumber()) {
-            key = std::to_string(static_cast<int>(keyValue.asNumber()));
-        }
-    }
-    if (isInternal) {
-        auto componentName = obj.getProperty(rt, "component").asString(rt).utf8(rt);
 
-        std::optional<std::string> id;
-        if (obj.hasProperty(rt, "id")) {
-            id = obj.getProperty(rt, "id").asString(rt).utf8(rt);
-        }
-        holder = std::make_unique<HermesWidgetHolder>(rt, componentName, std::make_unique<Value>(rt, props), id,
-                                                      std::move(key));
-    } else {
-        auto func = obj.getProperty(rt, "component");
-        holder = std::make_unique<HermesWidgetHolder>(rt, std::make_unique<Value>(rt, func),
-                                                      std::make_unique<Value>(rt, props), std::move(key));
-    }
-    return holder;
+    return HermesWidgetHolder::create(rt, value);
+}
+
+inline void HermesEngine::compareProps(const std::unique_ptr<PropMap> &old, const std::unique_ptr<PropMap> &newMap) {
+    auto &rt = *runtime;
+    const auto &oldHermesProps = dynamic_cast<HermesPropMap *>(old.get())->getHermesValue();
+    const auto &newHermesProps = dynamic_cast<HermesPropMap *>(newMap.get())->getHermesValue();
+    //NOte: the returned value is an object contains all changed. We may print it.
+    rt.global().getProperty(rt, "diffAndUpdate").asObject(rt).asFunction(rt).call(rt, oldHermesProps, newHermesProps);
 }
 
 HermesEngine::~HermesEngine() {

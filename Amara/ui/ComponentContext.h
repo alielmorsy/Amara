@@ -25,6 +25,7 @@ private:
     bool insideReconciliation = false;
     IEngine *engine;
     size_t hookCount = 0;
+    bool updating;
 
     struct Effect {
         StateWrapperRef callback;
@@ -70,7 +71,7 @@ public:
                            std::shared_ptr<ContainerWidget> &container_widget);
 
     std::shared_ptr<Widget> reconcileObject(const std::shared_ptr<Widget> &old,
-                                            std::unique_ptr<WidgetHolder> newCaller);
+                                            std::unique_ptr<WidgetHolder> &newCaller);
 
     void update();
 
@@ -80,6 +81,9 @@ public:
 
     void reconcileList(const std::shared_ptr<Widget> &listHolder, std::unique_ptr<AmaraArray> arr,
                        std::unique_ptr<StateWrapper> func);
+
+    void reconcileWidgetHolders(const std::shared_ptr<ContainerWidget> &listHolder,
+                                std::vector<std::unique_ptr<WidgetHolder>> widgetHolders);
 
     void markDirty() {
         dirty = true;

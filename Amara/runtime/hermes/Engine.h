@@ -6,11 +6,13 @@
 #define HERMES_ENGINE_H
 
 
+#include <complex.h>
 #include <memory>
 
 #include <hermes/hermes.h>
 #include <jsi/jsi.h>
 
+#include "HermesPropMap.h"
 #include "WidgetHostWrapper.h"
 #include "../../ui/ComponentContext.h"
 #include "../IEngine.h"
@@ -27,7 +29,7 @@ public:
 
     ~HermesEngine() override;
 
-    std::shared_ptr<Widget> createComponent(std::string &type, Value &&props) override;
+    std::shared_ptr<Widget> createComponent(std::string &type, std::unique_ptr<PropMap> propsMap) override;
 
     void installFunctions() override;
 
@@ -60,6 +62,7 @@ public:
     std::unique_ptr<WidgetHolder> getWidgetHolder(StateWrapperRef &widgetVariable) override;
     std::unique_ptr<WidgetHolder> getWidgetHolder(const Value &value);
 
+    void compareProps(const std::unique_ptr<PropMap> &old, const std::unique_ptr<PropMap> &newMap) override;
 
 private:
     bool _started = false;
@@ -69,6 +72,8 @@ private:
     std::vector<std::shared_ptr<ComponentContext> > nextIterationComponents;
     std::shared_ptr<WidgetHostWrapper> randomWrapper;
 };
+
+
 
 
 #endif //HERMES_ENGINE_H

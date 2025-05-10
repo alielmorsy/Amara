@@ -1,11 +1,13 @@
 #include "HermesPropMap.h"
 
+#include "HermesArray.h"
 #include "../../utils/ScopedTimer.h"
 
-#define FALLBACK_IF if (!has(key)) return std::move(defaultValue)
+#define FALLBACK_IF(val) if (val.isUndefined()) return std::move(defaultValue);
 
 std::string HermesPropMap::getString(const std::string &key, const std::string &defaultValue) const {
     auto val = get(key);
+    FALLBACK_IF(val)
     if (val.isNumber()) {
         return std::to_string(val.asNumber());
     }
@@ -54,6 +56,10 @@ bool HermesPropMap::has(const std::string &key) const {
     return obj.hasProperty(runtime, key.c_str());
 }
 
+void HermesPropMap::remove(const std::string &key) const {
+    obj.setProperty(runtime, key.c_str(), Value());
+}
+
 std::unique_ptr<PropMap> HermesPropMap::getObject(const std::string &key) const {
     auto value = get(key);
     if (!value.isObject()) {
@@ -62,6 +68,25 @@ std::unique_ptr<PropMap> HermesPropMap::getObject(const std::string &key) const 
     return std::make_unique<HermesPropMap>(runtime, std::move(value));
 }
 
+std::unique_ptr<AmaraArray> HermesPropMap::getArray(const std::string &key) const {
+    auto value = get(key);
+    if (value.isUndefined()) return  nullptr;
+    auto arr = value.asObject(runtime).asArray(runtime);
+    return std::make_unique<HermesArray>(runtime, std::move(arr));
+}
+
 Value HermesPropMap::get(const std::string &key) const {
     return obj.getProperty(runtime, key.c_str());
+}
+
+void HermesPropMap::set(const std::string &key, double value) const {
+    obj.setProperty(runtime, key.c_str(), Value(value));
+}
+
+void HermesPropMap::set(const std::string &key, std::unique_ptr<PropMap> &map) const {
+    obj.setProperty(runtime, key.c_str(), dynamic_cast<HermesPropMap *>(map.get())->obj);
+}
+
+void HermesPropMap::set(const std::string &key, const std::string &value) const {
+    obj.setProperty(runtime, key.c_str(), Value(String::createFromAscii(runtime, value.c_str())));
 }

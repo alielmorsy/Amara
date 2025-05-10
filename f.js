@@ -10,7 +10,6 @@ function createRef(initialValue, stateVariable = true) {
 
     const handler = {
         get(target, prop, receiver) {
-            print("Get called")
             // Handle special properties
             if (prop === 'value' || prop === '_internalValueOf') return target[VALUE_KEY];
             if (prop === 'setValue') return (newValue) => {
@@ -105,10 +104,118 @@ function createRef(initialValue, stateVariable = true) {
     return new Proxy(container, handler);
 }
 
-let c = createRef({})
-c._internalValueOf = true;
-let d = [1, c]
+function diffAndUpdate(obj1, obj2) {
+    const changes = {
+        added: [],
+        removed: [],
+        changed: [],
+    };
 
+    // Move helper functions outside of main function for better performance
+    function isObject(val) {
+        return val && typeof val === 'object' && !Array.isArray(val);
+    }
+
+    function isEqual(a, b) {
+        // Fast path for identity comparison
+        if (a === b) return true;
+        if (a == null || b == null) return false;
+        if (typeof a !== typeof b) return false;
+
+        // Object comparison
+        if (isObject(a) && isObject(b)) {
+            const aKeys = Object.keys(a);
+            const bKeys = Object.keys(b);
+            if (aKeys.length !== bKeys.length) return false;
+
+            // Use a for loop instead of .every() for better performance
+            for (let i = 0; i < aKeys.length; i++) {
+                const key = aKeys[i];
+                if (!b.hasOwnProperty(key) || !isEqual(a[key], b[key])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Array comparison
+        if (Array.isArray(a) && Array.isArray(b)) {
+            if (a.length !== b.length) return false;
+
+            for (let i = 0; i < a.length; i++) {
+                if (!isEqual(a[i], b[i])) return false;
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    function compareAndUpdate(o1, o2, path = '') {
+        // Early return for edge cases
+        if (o1 === o2) return;
+        if (!o1 || !o2) {
+            // Handle null/undefined cases
+            if (!o1 && o2) {
+                Object.assign(o1, o2);
+                changes.added.push({key: path, value: o2});
+            } else if (o1 && !o2) {
+                for (const key in o1) {
+                    delete o1[key];
+                }
+                changes.removed.push({key: path, value: o1});
+            }
+            return;
+        }
+
+        // Create key sets once
+        const keys1 = Object.keys(o1);
+        const keys2 = Object.keys(o2);
+        const keys1Set = new Set(keys1);
+        const keys2Set = new Set(keys2);
+
+        // Handle added keys
+        for (const key of keys2) {
+            if (key === 'children') continue;
+            //events will always be different, so we don't need to check on it.
+            if (key.startsWith("on")) continue;
+
+            const fullPath = path ? `${path}.${key}` : key;
+
+            if (!keys1Set.has(key)) {
+                o1[key] = o2[key];
+                changes.added.push({key: fullPath, value: o2[key]});
+            }
+        }
+
+        // Handle removed and changed keys
+        for (const key of keys1) {
+            if (key === 'children') continue;
+
+            const fullPath = path ? `${path}.${key}` : key;
+            const val1 = o1[key];
+
+            if (!keys2Set.has(key)) {
+                delete o1[key];
+                changes.removed.push({key: fullPath, value: val1});
+            } else {
+                const val2 = o2[key];
+
+                if (!isEqual(val1, val2)) {
+                    if (isObject(val1) && isObject(val2)) {
+                        compareAndUpdate(val1, val2, fullPath);
+                    } else {
+                        o1[key] = val2;
+                        changes.changed.push({key: fullPath, from: val1, to: val2});
+                    }
+                }
+            }
+        }
+    }
+
+    compareAndUpdate(obj1, obj2);
+    return changes;
+}
 function _slicedToArray(r, e) {
     return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest();
 }
@@ -180,7 +287,6 @@ function TaskBoard() {
         if (!newTask.trim()) return;
 
         setColumns(prev => {
-            print("Items", [...prev.todo, toRaw(newTask)])
             return ({
                 ...prev,
                 todo: [...prev.todo, toRaw(newTask)]
@@ -216,7 +322,6 @@ function TaskBoard() {
         });
         var _mapParent = createElement("component", {});
         effect(() => {
-            print("Column Keys", columns['todo'])
             listConciliar(_mapParent, Object.keys(columns), (col, _index) => ({
                 "$$internalComponent": true,
                 "component": "div",

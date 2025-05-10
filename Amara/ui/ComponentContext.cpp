@@ -82,6 +82,7 @@ void ComponentContext::update() {
         hookCount = 0;
         return;
     }
+    updating = true;
 
 
     _updateStates();
@@ -107,195 +108,196 @@ void ComponentContext::update() {
     updatedStates.clear();
     dirty = false;
     hookCount = 0;
-}
-
-
-void ComponentContext::reconcileList(const SharedWidget &listHolder,
-                                     std::unique_ptr<AmaraArray> arr,
-                                     std::unique_ptr<StateWrapper> func) {
-    auto holder = listHolder->as<ContainerWidget>();
-    if (!holder->hasChildren()) {
-        // Initial render case (unchanged)
-        for (int i = 0; i < arr->size(); ++i) {
-            const auto val = arr->getValue(i);
-            auto result = func->call(val->getValue(), Value(i));
-            if (!result->hasValue() || (result->getValue().isBool() && !result->getValue().asBool())) {
-                continue;
-            }
-            auto newWidgetHolder = engine->getWidgetHolder(result);
-            if (newWidgetHolder) {
-                auto widget = newWidgetHolder->execute(engine);
-                holder->addChild(widget);
-            }
-        }
-    } else {
-        auto currentChildren = holder->children();
-        const size_t newSize = arr->size();
-
-        // Build map of existing keyed widgets with their original indices
-        std::unordered_map<std::string, std::pair<SharedWidget, size_t> > existingChildren;
-        for (size_t i = 0; i < currentChildren.size(); ++i) {
-            if (currentChildren[i]->key.hasKey()) {
-                existingChildren[currentChildren[i]->key.key] = {currentChildren[i], i};
-            }
-        }
-
-        std::vector<SharedWidget> newChildren;
-        newChildren.reserve(newSize);
-        std::unordered_set<std::string> usedKeys;
-        std::vector<std::pair<int, size_t> > oldIndices; // (new index, old index)
-
-        // Reconcile new items and track positions
-        for (int i = 0; i < newSize; ++i) {
-            const auto val = arr->getValue(i);
-            auto result = func->call(val->getValue(), Value(i));
-            if (!result->hasValue() || (result->getValue().isBool() && !result->getValue().asBool())) {
-                continue;
-            }
-            auto newWidgetHolder = engine->getWidgetHolder(result);
-            auto newKey = newWidgetHolder->key();
-
-            SharedWidget widget;
-            if (newKey.hasKey() && existingChildren.count(newKey.key)) {
-                // Reuse existing widget
-                widget = existingChildren[newKey.key].first;
-                widget->component()->_reconciliationStarted = true;
-                widget = this->reconcileObject(widget, std::move(newWidgetHolder));
-                widget->component()->_reconciliationStarted = false;
-                widget->component()->hookCount = 0;
-                usedKeys.insert(newKey.key);
-                oldIndices.emplace_back(i, existingChildren[newKey.key].second);
-            } else {
-                // Create new widget
-                widget = newWidgetHolder->execute(engine);
-                if (newKey.hasKey()) {
-                    oldIndices.emplace_back(i, -1); // New widget, no old index
-                }
-            }
-            newChildren.push_back(widget);
-        }
-
-        // Compute LIS to find widgets that maintain relative order
-        std::vector<int> lis;
-        if (!oldIndices.empty()) {
-            std::vector<int> dp(oldIndices.size(), 1);
-            std::vector<int> prev(oldIndices.size(), -1);
-            size_t maxLen = 1, endIdx = 0;
-
-            for (size_t i = 1; i < oldIndices.size(); ++i) {
-                for (size_t j = 0; j < i; ++j) {
-                    if (oldIndices[i].second > oldIndices[j].second && dp[j] + 1 > dp[i]) {
-                        dp[i] = dp[j] + 1;
-                        prev[i] = j;
-                        if (dp[i] > maxLen) {
-                            maxLen = dp[i];
-                            endIdx = i;
-                        }
-                    }
-                }
-            }
-
-            // Reconstruct LIS
-            while (endIdx != -1) {
-                lis.push_back(oldIndices[endIdx].first);
-                endIdx = prev[endIdx];
-            }
-            std::reverse(lis.begin(), lis.end());
-        }
-
-        // Apply minimal updates to container
-        std::vector<SharedWidget> tempChildren = currentChildren;
-        size_t currentIdx = 0, newIdx = 0;
-
-        while (newIdx < newChildren.size()) {
-            //This check assumes that any unchanged widget will not change
-            if (currentIdx < tempChildren.size() &&
-                std::find(lis.begin(), lis.end(), newIdx) != lis.end() &&
-                tempChildren[currentIdx] == newChildren[newIdx]) {
-                // Widget is in LIS and at correct position
-                ++currentIdx;
-                ++newIdx;
-            } else {
-                // Widget needs to be inserted or moved
-                bool found = false;
-                for (size_t j = currentIdx; j < tempChildren.size(); ++j) {
-                    if (tempChildren[j] == newChildren[newIdx]) {
-                        //        holder->moveChild(j, newIdx);
-                        tempChildren.erase(tempChildren.begin() + j);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    holder->replaceChild(newIdx, newChildren[newIdx]);
-                }
-                ++newIdx;
-                if (currentIdx < tempChildren.size()) ++currentIdx;
-            }
-        }
-
-        // Remove any remaining children not in new list
-        while (currentIdx < tempChildren.size()) {
-            holder->removeChild(currentIdx);
-            tempChildren.erase(tempChildren.begin() + currentIdx);
-        }
-
-        // Destroy unused widgets
-        for (const auto &[key, widgetPair]: existingChildren) {
-            if (!usedKeys.count(key)) {
-                widgetPair.first->resetPointer();
-            }
-        }
-    }
+    updating = false;
 }
 
 
 std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<Widget> &old,
-                                                          std::unique_ptr<WidgetHolder> newCaller) {
+                                                          std::unique_ptr<WidgetHolder> &newCaller) {
     auto &subComponent = old->component();
+    //bool sameComponent = subComponent.get() == this;
+
+    auto componentName = newCaller->getComponentName();
+
+
     subComponent->_reconciliationStarted = true;
     subComponent->_updateStates();
-
-    if (!old->is<ContainerWidget>()) {
-        engine->plugComponent(subComponent);
-        auto result = newCaller->execute(engine);
-        engine->unplugComponent();
-        subComponent->_reconciliationStarted = false;
-        return result;
+    auto &newProps = newCaller->props();
+    if (componentName == "div" && old->is<ContainerWidget>()) {
+        engine->compareProps(old->propMap, newProps);
+        auto children = newCaller->getChildren();
+        reconcileWidgetHolders(old->as<ContainerWidget>(), std::move(children));
+        return old;
+    } else {
+        return newCaller->execute(engine);
     }
-
-    auto oldContainer = old->as<ContainerWidget>();
-    subComponent->reconcilingObject = oldContainer;
-    engine->pushExistingComponent(subComponent);
-    SharedWidget newWidget = newCaller->execute(engine);
-    subComponent->reconcilingObject.reset();
-    subComponent->_reconciliationStarted = false;
-    subComponent->dirty = false;
-
-    if (newWidget->is<ContainerWidget>()) {
-        auto newContainer = newWidget->as<ContainerWidget>();
-        reconcileChildren(oldContainer, newContainer);
-    }
-
-    old->resetPointer();
-    return newWidget;
 }
 
-void ComponentContext::reconcileChildren(std::shared_ptr<ContainerWidget> &oldContainer,
-                                         shared_ptr<ContainerWidget> &newContainer) {
-    return;
-    auto &oldChildren = oldContainer->children();
-    auto &newChildren = newContainer->children();
-    size_t maxSize = std::max(oldChildren.size(), newChildren.size());
+/**
+ * Original reconcileList function that maps array items and a function to widget holders
+ * and passes them to the generalized reconciler
+ */
+void ComponentContext::reconcileList(const SharedWidget &listHolder,
+                                     std::unique_ptr<AmaraArray> arr,
+                                     std::unique_ptr<StateWrapper> func) {
+    // Convert array items to widget holders
+    std::vector<std::unique_ptr<WidgetHolder> > widgetHolders;
+    widgetHolders.reserve(arr->size());
 
-    for (size_t i = 0; i < maxSize; ++i) {
-        if (i >= oldChildren.size()) {
-            oldChildren.push_back(newChildren[i]);
-        } else if (i >= newChildren.size()) {
-            oldChildren.resize(newChildren.size());
-            break;
+    for (int i = 0; i < arr->size(); ++i) {
+        const auto val = arr->getValue(i);
+        auto result = func->call(val->getValue(), Value(i));
+
+        // Skip if result is falsy
+        if (!result->hasValue() || (result->getValue().isBool() && !result->getValue().asBool())) {
+            continue;
+        }
+
+        auto widgetHolder = engine->getWidgetHolder(result);
+        if (widgetHolder) {
+            widgetHolders.push_back(std::move(widgetHolder));
+        }
+    }
+
+    // Call the generalized reconciliation function
+    reconcileWidgetHolders(listHolder->as<ContainerWidget>(), std::move(widgetHolders));
+}
+
+/**
+ * Generalized function that reconciles a container with a vector of widget holders
+ */
+void ComponentContext::reconcileWidgetHolders(const std::shared_ptr<ContainerWidget> &listHolder,
+                                              std::vector<std::unique_ptr<WidgetHolder> > widgetHolders) {
+    auto holder = listHolder->as<ContainerWidget>();
+
+    // Initial render case
+    if (!holder->hasChildren()) {
+        for (const auto &widgetHolder: widgetHolders) {
+            if (!widgetHolder) continue;
+            auto widget = widgetHolder->execute(engine);
+            if (widget) {
+                holder->addChild(widget);
+            }
+        }
+        return;
+    }
+
+    // Reconciliation case
+    auto currentChildren = holder->children();
+    const size_t newSize = widgetHolders.size();
+
+    // Build map of existing keyed widgets with their original indices
+    std::unordered_map<std::string, std::pair<SharedWidget, size_t> > existingChildren;
+    for (size_t i = 0; i < currentChildren.size(); ++i) {
+        if (currentChildren[i]->key.hasKey()) {
+            existingChildren[currentChildren[i]->key.key] = {currentChildren[i], i};
+        }
+    }
+
+    // Prepare new children list and tracking structures
+    std::vector<SharedWidget> newChildren;
+    newChildren.reserve(newSize);
+    std::unordered_set<std::string> usedKeys;
+    std::vector<std::pair<int, size_t> > oldIndices; // (new index, old index)
+
+    // Process each new widget holder
+    for (int i = 0; i < newSize; ++i) {
+        auto &widgetHolder = widgetHolders[i];
+        if (!widgetHolder) continue;
+
+        auto newKey = widgetHolder->key();
+        SharedWidget widget;
+
+        if ((newKey.hasKey() && existingChildren.count(newKey.key))) {
+            // Reuse existing widget
+            widget = existingChildren[newKey.key].first;
+            widget->component()->_reconciliationStarted = true;
+            widget = this->reconcileObject(widget, widgetHolder);
+            widget->component()->_reconciliationStarted = false;
+            widget->component()->hookCount = 0;
+            usedKeys.insert(newKey.key);
+            oldIndices.emplace_back(i, existingChildren[newKey.key].second);
+        } else if (!newKey.hasKey() && i < currentChildren.size() && !currentChildren[i]->key.hasKey()) {
+            widget = currentChildren[i];
+            widget->component()->_reconciliationStarted = true;
+            widget = this->reconcileObject(widget, widgetHolder);
+            widget->component()->_reconciliationStarted = false;
+            widget->component()->hookCount = 0;
+            oldIndices.emplace_back(i, i);
         } else {
-            oldChildren[i] = newChildren[i];
+            // Create new widget
+            widget = widgetHolder->execute(engine);
+            if (newKey.hasKey()) {
+                oldIndices.emplace_back(i, -1); // New widget, no old index
+            }
+        }
+
+        if (widget) {
+            newChildren.push_back(widget);
+        }
+    }
+
+    // Compute Longest Increasing Subsequence to find widgets that maintain relative order
+    std::vector<int> lis;
+    if (!oldIndices.empty()) {
+        for (auto &p: oldIndices) {
+            auto it = std::lower_bound(lis.begin(), lis.end(), p.second);
+            if (it == lis.end()) {
+                lis.push_back(p.second);
+            } else {
+                *it = p.second;
+            }
+        }
+    }
+
+    // Apply minimal updates to container
+    std::vector<SharedWidget> tempChildren = currentChildren;
+    size_t currentIdx = 0, newIdx = 0;
+
+    while (newIdx < newChildren.size()) {
+        bool isInLIS = std::find(lis.begin(), lis.end(), newIdx) != lis.end();
+
+        if (currentIdx < tempChildren.size() && isInLIS &&
+            tempChildren[currentIdx] == newChildren[newIdx]) {
+            // Widget is in LIS and at correct position - keep it
+            ++currentIdx;
+            ++newIdx;
+        } else {
+            // Widget needs to be inserted or moved
+            bool found = false;
+            for (size_t j = currentIdx; j < tempChildren.size(); ++j) {
+                if (tempChildren[j] == newChildren[newIdx]) {
+                    // Move existing widget to the right position
+                    holder->replaceChild(j, newChildren[newIdx]);
+                    tempChildren.erase(tempChildren.begin() + j);
+                    tempChildren.insert(tempChildren.begin() + newIdx, newChildren[newIdx]);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                // Insert new widget
+                holder->insertChild(newIdx, newChildren[newIdx]);
+                tempChildren.insert(tempChildren.begin() + newIdx, newChildren[newIdx]);
+            }
+            ++currentIdx;
+            ++newIdx;
+        }
+    }
+
+    // Remove any remaining children not in new list
+    while (currentIdx < tempChildren.size()) {
+        holder->removeChild(currentIdx);
+        tempChildren.erase(tempChildren.begin() + currentIdx);
+    }
+
+    // Destroy unused widgets
+    for (const auto &[key, widgetPair]: existingChildren) {
+        if (usedKeys.find(key) == usedKeys.end()) {
+            if (widgetPair.first) {
+                widgetPair.first->resetPointer();
+            }
         }
     }
 }

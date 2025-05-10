@@ -85,7 +85,7 @@ Value WidgetHostWrapper::addChild(Runtime &rt, const Value *args, const size_t c
         auto func = obj.getProperty(rt, "component");
         auto props = obj.getProperty(rt, "props");
         auto holder = std::make_unique<HermesWidgetHolder>(rt, std::make_unique<Value>(rt, func),
-                                                           std::make_unique<Value>(rt, props));
+                                                           std::make_unique<HermesPropMap>(rt, std::move(props)));
         containerWidget->addStaticChild(engine, std::move(holder));
         return Value::undefined();
     }
@@ -152,7 +152,7 @@ Value WidgetHostWrapper::insertChildren(Runtime &rt, const Value *args, size_t c
     auto arr = std::make_unique<HermesArray>(rt, Value(rt, children));
     auto emptyProps = Value();
     std::string type = "component";
-    auto holder = engine->createComponent(type, Object(rt));
+    auto holder = engine->createComponent(type, std::make_unique<HermesPropMap>(rt, Object(rt)));
     auto holderContainer = holder->as<ContainerWidget>();
     for (int i = 0; i < arr->size(); ++i) {
         auto val = arr->getValue(i);

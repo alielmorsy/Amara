@@ -39,7 +39,7 @@ protected:
     std::weak_ptr<Widget> parent;
     std::shared_ptr<ComponentContext> _component;
     std::unordered_map<std::string, std::string> props;
-    std::unique_ptr<PropMap> propMap;
+
     std::unique_ptr<PropMap> style;
     WidgetStyle widgetStyle;
 
@@ -63,7 +63,7 @@ protected:
 
 public:
     Key key;
-
+    std::unique_ptr<PropMap> propMap;
     template<class T>
     std::shared_ptr<T> as() {
         return std::dynamic_pointer_cast<T>(shared_from_this());
@@ -174,7 +174,7 @@ public:
 
     void replaceChildren(vector<std::shared_ptr<Widget> > vector);
 
-    void insertChild(IEngine *engine, size_t position, std::shared_ptr<Widget> widget);
+    void insertChild(size_t position, std::shared_ptr<Widget> widget);
 
 
 protected:

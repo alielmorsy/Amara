@@ -22,7 +22,7 @@ public:
     ~HermesArray() override = default;
 
 private:
-    Array resolveArray(Runtime &rt, Value val) {
+    static Array resolveArray(Runtime &rt, Value val) {
         auto obj = val.asObject(rt);
         if (obj.isFunction(rt)) {
             return obj.asFunction(rt).call(rt).asObject(rt).asArray(rt);

@@ -13,7 +13,7 @@ void Widget::parseProps() {
     }
     if (propMap->has("style")) {
         this->style = std::move(propMap->getObject("style"));
-        parseStyle();
+        //  parseStyle();
     }
 }
 
@@ -203,7 +203,7 @@ void ContainerWidget::insertChild(IEngine *engine, std::string id, std::unique_p
             size_t index = reconcileComponent->insertedChildren[id];
             assert(index < reconcileComponent->_children.size() && "Insertion ID has invalid child index");
             auto newWidget = _component->reconcileObject(
-                reconcileComponent->_children[index], std::move(holder));
+                reconcileComponent->_children[index], holder);
             insertedChildren[id] = _children.size();
             _children.emplace_back(newWidget);
             return;
@@ -217,7 +217,7 @@ void ContainerWidget::insertChild(IEngine *engine, std::string id, std::unique_p
         insertedChildren[id] = _children.size();
         _children.emplace_back(std::move(widget));
     } else {
-        auto newWidget = _component->reconcileObject(_children[insertedChildren[id]], std::move(holder));
+        auto newWidget = _component->reconcileObject(_children[insertedChildren[id]], holder);
         newWidget->setParent(weak_from_this());
         _children[insertedChildren[id]] = newWidget;
     }
@@ -244,14 +244,13 @@ void ContainerWidget::replaceChildren(vector<std::shared_ptr<Widget> > vector) {
     _children = std::move(vector);
 }
 
-void ContainerWidget::insertChild(IEngine *engine, size_t position, std::shared_ptr<Widget> widget) {
+void ContainerWidget::insertChild(size_t position, std::shared_ptr<Widget> widget) {
     // Ensure position is within bounds
-    if (position > _children.size()) {
-        position = _children.size();
+    if (position >= _children.size()) {
+        _children.push_back(std::move(widget));
+        return;
     }
-
-
-    _children[position] = std::move(widget);
+    _children.insert(_children.begin() + position, std::move(widget));
 }
 
 void TextWidget::insertChild(std::string &id, const std::string &text) {
