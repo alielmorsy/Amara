@@ -171,6 +171,7 @@ public:
     }
 
     //Will do dumb erase from the vector because its mainly used for list reconcile. If we ever needed to make it more complex, Please make sure
+    void removeChild(std::string &id);
     void removeChild(size_t index);
 
     void replaceChildren(vector<std::shared_ptr<Widget> > vector);

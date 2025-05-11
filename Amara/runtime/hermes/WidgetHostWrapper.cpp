@@ -49,6 +49,23 @@ Value WidgetHostWrapper::get(Runtime &runtime, const PropNameID &propName) {
                 return insertChildren(rt, args, count);
             });
     }
+
+    if (name == "setChild") {
+        return Function::createFromHostFunction(
+            runtime,
+            propName,
+            1, [this](Runtime &rt, const Value &thisValue, const Value *args, const size_t count) {
+                return setChild(rt, args, count);
+            });
+    }
+    if (name == "removeChild") {
+        return Function::createFromHostFunction(
+            runtime,
+            propName,
+            1, [this](Runtime &rt, const Value &thisValue, const Value *args, const size_t count) {
+                return removeChild(rt, args, count);
+            });
+    }
     return Value::undefined();
 }
 
@@ -169,6 +186,14 @@ Value WidgetHostWrapper::setChild(Runtime &rt, const Value *args, size_t count) 
     auto holderWidget = widget->as<HolderWidget>();
     auto widgetHolder = engine->getWidgetHolder(args[0]);
     holderWidget->setChild(widgetHolder->execute(engine));
+    return Value::undefined();
+}
+
+Value WidgetHostWrapper::removeChild(Runtime &rt, const Value *args, size_t count) {
+    auto widget = nativeWidget.lock()->as<ContainerWidget>();
+
+    auto id = args[0].asString(rt).utf8(rt);
+    widget->removeChild(id);
     return Value::undefined();
 }
 

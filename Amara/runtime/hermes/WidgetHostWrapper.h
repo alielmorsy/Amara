@@ -35,6 +35,8 @@ public:
     // For holder widget only
     JSI_FUNCTION(setChild);
 
+    JSI_FUNCTION(removeChild);
+
     SharedWidget getNativeWidget() const;
 
 private:

@@ -216,6 +216,7 @@ function diffAndUpdate(obj1, obj2) {
     compareAndUpdate(obj1, obj2);
     return changes;
 }
+
 function _slicedToArray(r, e) {
     return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest();
 }
@@ -269,36 +270,28 @@ function _arrayWithHoles(r) {
 }
 
 function TaskBoard() {
-    beginComponentInit("guaLtoio");
-
-    var _useState = useState({
-            todo: ['Buy milk', 'Write blog'],
-            doing: ['Learn React'],
-            done: []
-        }),
-        _useState2 = _slicedToArray(_useState, 2),
-        columns = _useState2[0],
-        setColumns = _useState2[1];
-    var _useState3 = useState(''),
-        _useState4 = _slicedToArray(_useState3, 2),
-        newTask = _useState4[0],
-        setNewTask = _useState4[1];
-    var handleAddTask = () => {
+    beginComponentInit("sVQwNuCG");
+    const [columns, setColumns] = useState({
+        todo: ['Buy milk', 'Write blog'],
+        doing: ['Learn React'],
+        done: []
+    });
+    const [newTask, setNewTask] = useState('');
+    const handleAddTask = () => {
+        //@amara-state
+        const example = columns;
         if (!newTask.trim()) return;
-
-        setColumns(prev => {
-            return ({
-                ...prev,
-                todo: [...prev.todo, toRaw(newTask)]
-            })
-        });
+        setColumns(prev => ({
+            ...prev,
+            todo: [...prev.todo, toRaw(newTask)]
+        }));
+        columns.todo.push(toRaw(example));
         setNewTask('');
     };
-    var moveTask = (task, from, to) => {
+    const moveTask = (task, from, to) => {
         setColumns(prev => {
             const newFrom = prev[from].filter(t => t !== task);
             const newTo = [...prev[to], task];
-
             return {
                 ...prev,
                 [from]: newFrom,
@@ -306,26 +299,18 @@ function TaskBoard() {
             };
         });
     };
-    effect(() => {
-        setNewTask("3lawy")
-
-    }, [])
-    effect(() => {
-        handleAddTask()
-    }, [newTask])
     {
-        var _parent = createElement("div", {
+        const _parent = createElement("div", {
             style: {
                 display: 'flex',
                 gap: '1rem'
             }
         });
-        var _mapParent = createElement("component", {});
+        const _mapParent = createElement("component", {});
         effect(() => {
-            listConciliar(_mapParent, Object.keys(columns), (col, _index) => ({
+            listConciliar(_mapParent, Object.keys(toRaw(columns)), (col, _index) => ({
                 "$$internalComponent": true,
                 "component": "div",
-                key: col,
                 "props": {
                     key: col,
                     style: {
@@ -335,60 +320,150 @@ function TaskBoard() {
                     },
                     "children": [{
                         "$$internalComponent": true,
-                        "component": "text",
+                        "component": 'text',
                         "props": {
                             "children": [col.toUpperCase()]
                         },
-                        "id": "PGhPdRNm"
+                        "id": "BVRijwT7"
                     }, ...columns[col].map(task => ({
-                        "$$internalComponent": true,
-                        "component": "div",
+                        "$$internalComponent": false,
+                        "component": Child,
                         "props": {
-                            key: task,
-                            style: {
-                                marginBottom: '0.5rem'
-                            },
-                            "children": [{
-                                "$$internalComponent": true,
-                                "component": "text",
-                                "props": {
-                                    "children": [task]
-                                },
-                                "id": "LYnNSJCJ"
-                            }]
+                            task: task,
+                            key: col,
+                            col: col,
+                            "children": []
                         },
-                        "id": "1twSLwZf"
+                        "id": "j2NTT4PU"
                     }))]
                 },
-                "id": "eyfQ7mK3"
+                "id": "tv3Dmam"
             }));
         }, [columns]);
         _parent.addChild(_mapParent);
-        var _element4 = createElement("div", {});
+        const _element2 = createElement("div", {});
         effect(() => {
-            _element4.insertChild("cbRvNlP3", {
-                "$$internalComponent": true,
-                "component": "component",
+            _element2.insertChild("Os9p4w13", {
+                "$$internalComponent": false,
+                "component": input,
                 "props": {
-                    value: newTask,
+                    value: toRaw(newTask),
                     onChange: e => setNewTask(e.target.value),
                     "children": []
                 },
-                "id": "mk7KGhg7"
+                "id": "LGJB0j4O"
             });
-        }, []);
-        _element4.addStaticChild({
+        }, [newTask]);
+        _element2.addStaticChild({
             "$$internalComponent": true,
             "component": "button",
             "props": {
                 onClick: handleAddTask,
-                "children": []
+                "children": ["Add Task"]
             },
-            "id": "wdn7e03"
+            "id": "xF9628E"
         });
-        _parent.addChild(_element4);
+        _parent.addChild(_element2);
         endComponent();
         return _parent;
+    }
+}
+
+function Child({
+                   task,
+                   col,
+                   moveTask
+               }) {
+    beginComponentInit("RZFCnR0I");
+    {
+        const _parent4 = createElement("div", {
+            key: toRaw(task),
+            style: {
+                marginBottom: '0.5rem'
+            }
+        });
+        effect(() => {
+            _parent4.key = task;
+        }, [task]);
+        const _element5 = createElement("text", {});
+        effect(() => {
+            _element5.insertChild("Nfro66sS", {
+                $$internalComponent: true,
+                component: "text",
+                props: {
+                    children: [toRaw(task)]
+                },
+                id: "PmHbvf5b"
+            });
+        }, [task]);
+        _parent4.addChild(_element5);
+        const _element6 = createElement("div", {});
+        const _holder = createElement("holder", {});
+        effect(() => {
+            _holder.setChild({
+                "$$internalComponent": true,
+                "component": "button",
+                "props": {
+                    onClick: () => moveTask(toRaw(task), toRaw(col), 'todo'),
+                    "children": [{
+                        "$$internalComponent": true,
+                        "component": "text",
+                        props: {
+                            children: ["To Do"]
+                        }
+                    }]
+                },
+                "id": "mZFsRiZN"
+            });
+        }, [moveTask]);
+        effect(() => {
+            if (col !== 'todo') {
+                _element6.insertChild("o25FKuXr", _holder);
+            } else {
+                _element6.removeChild("o25FKuXr");
+            }
+        }, [col]);
+        const _holder2 = createElement("holder", {});
+        effect(() => {
+            _holder2.setChild({
+                "$$internalComponent": true,
+                "component": "text",
+                "props": {
+                    onClick: () => moveTask(toRaw(task), toRaw(col), 'doing'),
+                    "children": ["Doing"]
+                },
+                "id": "GGNh9LPJ"
+            });
+        }, [moveTask]);
+        effect(() => {
+            if (col !== 'doing') {
+                _element6.insertChild("9cqzmBW", _holder2);
+            } else {
+                _element6.removeChild("9cqzmBW");
+            }
+        }, [col]);
+        const _holder3 = createElement("holder", {});
+        effect(() => {
+            _holder3.setChild({
+                "$$internalComponent": true,
+                "component": "text",
+                "props": {
+                    onClick: () => moveTask(toRaw(task), toRaw(col), 'done'),
+                    "children": ["Done"]
+                },
+                "id": "F4PNCv0R"
+            });
+        }, [moveTask]);
+        effect(() => {
+            if (col !== 'done') {
+                _element6.insertChild("mlth6TpT", _holder3);
+            } else {
+                _element6.removeChild("mlth6TpT");
+            }
+        }, [col]);
+        _parent4.addChild(_element6);
+        endComponent();
+        return _parent4;
     }
 }
 

@@ -229,6 +229,16 @@ void ContainerWidget::replaceChild(size_t index, const SharedWidget &widget) {
     _children[index] = widget;
 }
 
+void ContainerWidget::removeChild(std::string &id) {
+    if (!insertedChildren.count(id)) {
+        //Item wasn't added. Go away
+        return;
+    }
+    auto index = insertedChildren[id];
+    _children.erase(_children.begin() + index);
+    insertedChildren.erase(id);
+}
+
 void ContainerWidget::removeChild(size_t index) {
     //freeing the pointer
     _children[index]->resetPointer();
