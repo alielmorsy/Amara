@@ -87,7 +87,13 @@ export function processFunc(path: BabelFunction) {
         VariableDeclarator(path) {
             const init = path.node.init;
             const id = path.node.id;
-
+            const parent = path.findParent((p) => {
+                return t.isCallExpression(p.node) && t.isIdentifier(p.node.callee, {name: "effect"})
+            });
+            if (parent) {
+                //Ignore effects
+                return;
+            }
             if (!t.isCallExpression(init)) {
                 if (t.isIdentifier(init)) {
                     //The last check is a workaround for dumb users who may redefine variables
@@ -114,28 +120,28 @@ export function processFunc(path: BabelFunction) {
                 return;
             }
 
-            if (t.isIdentifier(id)) {
-                // Single variable case
-                funcState.variables.add(id.name);
-            } else if (t.isObjectPattern(id)) {
-                // Destructuring case (object)
-                id.properties.forEach(prop => {
-                    if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
-                        funcState.variables.add(prop.key.name);
-                    } else if (t.isRestElement(prop) && t.isIdentifier(prop.argument)) {
-                        funcState.variables.add(prop.argument.name);
-                    }
-                });
-            } else if (t.isArrayPattern(id)) {
-                // Destructuring case (array)
-                id.elements.forEach(el => {
-                    if (t.isIdentifier(el)) {
-                        funcState.variables.add(el.name);
-                    } else if (t.isRestElement(el) && t.isIdentifier(el.argument)) {
-                        funcState.variables.add(el.argument.name);
-                    }
-                });
-            }
+            // if (t.isIdentifier(id)) {
+            //     // Single variable case
+            //     funcState.variables.add(id.name);
+            // } else if (t.isObjectPattern(id)) {
+            //     // Destructuring case (object)
+            //     id.properties.forEach(prop => {
+            //         if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
+            //             funcState.variables.add(prop.key.name);
+            //         } else if (t.isRestElement(prop) && t.isIdentifier(prop.argument)) {
+            //             funcState.variables.add(prop.argument.name);
+            //         }
+            //     });
+            // } else if (t.isArrayPattern(id)) {
+            //     // Destructuring case (array)
+            //     id.elements.forEach(el => {
+            //         if (t.isIdentifier(el)) {
+            //             funcState.variables.add(el.name);
+            //         } else if (t.isRestElement(el) && t.isIdentifier(el.argument)) {
+            //             funcState.variables.add(el.argument.name);
+            //         }
+            //     });
+            // }
         },
         JSXElement(path) {
             const result = handleJsxElement(path, funcState);
