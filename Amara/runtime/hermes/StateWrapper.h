@@ -57,7 +57,9 @@ public:
     bool equals(StateWrapper *other) const {
         return Value::strictEquals(rt, value, other->value);
     }
-
+    bool equals(Value &other) {
+        return Value::strictEquals(rt, value, other);
+    }
     template<typename... Args>
     StateWrapperRef call(Args... args) {
         auto result = value.asObject(rt).asFunction(rt).call(rt, std::forward<Args>(args)...);

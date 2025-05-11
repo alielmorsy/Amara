@@ -49,11 +49,12 @@ std::shared_ptr<Widget> HermesWidgetHolder::execute(IEngine *engine) {
         return widget;
     }
     auto &c = hermesProps->getHermesValue();
-    const auto result = componentFunction->asObject(rt).asFunction(rt).call(rt,Value(rt, c));
+    const auto result = componentFunction->asObject(rt).asFunction(rt).call(rt, Value(rt, c));
     auto widget = result.asObject(rt).asHostObject<WidgetHostWrapper>(rt)->getNativeWidget();
     if (key().hasKey()) {
         widget->key = key();
     }
+    widget->component()->componentObject = StateWrapper::create(rt, Value(rt, *componentFunction));
     return widget;
 }
 
@@ -68,4 +69,9 @@ std::vector<std::unique_ptr<WidgetHolder> > HermesWidgetHolder::getChildren() {
     }
 
     return children;
+}
+
+bool HermesWidgetHolder::sameComponent(StateWrapperRef &other) {
+    if (!other) return false;
+    return other->equals(*componentFunction);
 }

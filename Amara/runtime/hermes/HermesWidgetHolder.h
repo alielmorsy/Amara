@@ -68,6 +68,8 @@ public:
         return holder;
     }
 
+    bool sameComponent(StateWrapperRef &other) override;
+
 private:
     std::unique_ptr<Value> componentFunction;
     Runtime &rt;

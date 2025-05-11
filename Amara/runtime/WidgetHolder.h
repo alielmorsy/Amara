@@ -51,6 +51,8 @@ public:
         return _props;
     }
 
+    virtual bool sameComponent(StateWrapperRef &other) =0;
+
 protected:
     bool isInternal = false;
     std::optional<std::string> id;

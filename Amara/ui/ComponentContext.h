@@ -83,13 +83,14 @@ public:
                        std::unique_ptr<StateWrapper> func);
 
     void reconcileWidgetHolders(const std::shared_ptr<ContainerWidget> &listHolder,
-                                std::vector<std::unique_ptr<WidgetHolder>> widgetHolders);
+                                std::vector<std::unique_ptr<WidgetHolder> > widgetHolders);
 
     void markDirty() {
         dirty = true;
     };
 
     std::weak_ptr<ContainerWidget> reconcilingObject;
+    StateWrapperRef componentObject;
 
     ~ComponentContext() {
         widgets.clear();
