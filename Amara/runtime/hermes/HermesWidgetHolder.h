@@ -35,6 +35,8 @@ public:
 
     std::vector<std::unique_ptr<WidgetHolder> > getChildren() override;
 
+    std::vector<std::string> getTextChildren() override;
+
     static std::unique_ptr<HermesWidgetHolder> create(Runtime &rt, const Value &value) {
         Object obj = value.asObject(rt);
         const auto isInternal = obj.getProperty(rt, "$$internalComponent").asBool();

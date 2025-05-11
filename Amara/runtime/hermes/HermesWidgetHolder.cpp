@@ -71,6 +71,18 @@ std::vector<std::unique_ptr<WidgetHolder> > HermesWidgetHolder::getChildren() {
     return children;
 }
 
+std::vector<std::string> HermesWidgetHolder::getTextChildren() {
+    auto arr = _props->getArray("children");
+    if (!arr) return {};
+    std::vector<std::string> text;
+    text.reserve(arr->size());
+    for (int i = 0; i < arr->size(); ++i) {
+        const auto val = arr->getValue(i);
+        text.push_back(val->getValueRef().asString(rt).utf8(rt));
+    }
+    return text;
+}
+
 bool HermesWidgetHolder::sameComponent(StateWrapperRef &other) {
     if (!other) return false;
     return other->equals(*componentFunction);

@@ -145,10 +145,9 @@ std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<
     if (componentName == "text" && old->is<TextWidget>()) {
         //I am pretty sure we need a new way of handling this
         engine->compareProps(old->propMap, newProps);
-        auto newWidget = newCaller->execute(engine)->as<TextWidget>();
-        auto textWidget = old->as<TextWidget>();
-        textWidget->replaceChildren(newWidget->children());
-        newWidget->resetPointer();
+
+        const auto textWidget = old->as<TextWidget>();
+        textWidget->replaceChildren(newCaller->getTextChildren());
         return old;
     }
     return newCaller->execute(engine);

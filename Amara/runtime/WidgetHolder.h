@@ -47,6 +47,8 @@ public:
 
     virtual std::vector<std::unique_ptr<WidgetHolder> > getChildren() =0;
 
+    virtual std::vector<std::string> getTextChildren() =0;
+
     std::unique_ptr<PropMap> &props() {
         return _props;
     }
