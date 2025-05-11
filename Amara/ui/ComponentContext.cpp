@@ -134,17 +134,24 @@ std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<
         //TODO: We need unmounting here
         return newCaller->execute(engine);
     }
-    if (componentName == "div" && old->is<ContainerWidget>() ) {
+    if (componentName == "div" && old->is<ContainerWidget>()) {
         subComponent->_reconciliationStarted = true;
         engine->compareProps(old->propMap, newProps);
         auto children = newCaller->getChildren();
         reconcileWidgetHolders(old->as<ContainerWidget>(), std::move(children));
         subComponent->_reconciliationStarted = false;
         return old;
-    } else {
-        //TODO
+    }
+    if (componentName == "text" && old->is<TextWidget>()) {
+        //I am pretty sure we need a new way of handling this
+        engine->compareProps(old->propMap, newProps);
+        auto newWidget = newCaller->execute(engine)->as<TextWidget>();
+        auto textWidget = old->as<TextWidget>();
+        textWidget->replaceChildren(newWidget->children());
+        newWidget->resetPointer();
         return old;
     }
+    return newCaller->execute(engine);
 }
 
 /**

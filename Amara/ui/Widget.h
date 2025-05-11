@@ -64,6 +64,7 @@ protected:
 public:
     Key key;
     std::unique_ptr<PropMap> propMap;
+
     template<class T>
     std::shared_ptr<T> as() {
         return std::dynamic_pointer_cast<T>(shared_from_this());
@@ -176,7 +177,6 @@ public:
 
     void insertChild(size_t position, std::shared_ptr<Widget> widget);
 
-
 protected:
     std::vector<std::shared_ptr<ComponentContext> > childrenComponents;
     std::vector<std::shared_ptr<Widget> > _children;
@@ -240,15 +240,23 @@ public:
 
 
     void goReset() override {
-        children.clear();
-    };
+        _children.clear();
+    }
+
+    void replaceChildren(std::vector<std::string> newChildren) {
+        _children = std::move(newChildren);
+    }
 
     void addText(const std::string &newText) {
-        children.push_back(newText);
+        _children.push_back(newText);
     }
 
     void addChild(std::shared_ptr<Widget> &widget) {
         throw std::runtime_error("You cannot add an child for a text widget");
+    }
+
+    std::vector<std::string> children() {
+        return _children;
     }
 
     void insertChild(std::string &id, const std::string &text);
@@ -265,7 +273,7 @@ public:
 
     std::string getValue() override {
         std::string result;
-        for (const auto &child: children) {
+        for (const auto &child: _children) {
             result += child;
         }
         return "Text Widget: " + result;
@@ -273,7 +281,7 @@ public:
 
 private:
     std::unordered_map<std::string, size_t> insertedChildren;
-    std::vector<std::string> children;
+    std::vector<std::string> _children;
 };
 
 class HolderWidget : public Widget {

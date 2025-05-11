@@ -254,6 +254,6 @@ void ContainerWidget::insertChild(size_t position, std::shared_ptr<Widget> widge
 }
 
 void TextWidget::insertChild(std::string &id, const std::string &text) {
-    children.emplace_back(text);
-    insertedChildren[id] = children.size() - 1;
+    _children.emplace_back(text);
+    insertedChildren[id] = _children.size() - 1;
 }
