@@ -217,7 +217,8 @@ interface JsxResult {
 export function handleJsxExpression(
     path: NodePath<t.JSXExpressionContainer>,
     funcState: FunctionScope,
-    parentElement: t.Identifier
+    parentElement: t.Identifier,
+    isParentText: boolean
 ): t.Statement[] {
     const expression = path.node.expression;
     const statements: t.Statement[] = [];
@@ -309,8 +310,11 @@ export function handleJsxExpression(
             );
         } else if (!t.isJSXEmptyExpression(consequent)) {
             // Handle non-JSX expressions in the consequent
-            consequentResult = {
-                expression: t.objectExpression([
+            let expr: t.Expression
+            if (isParentText) {
+                expr = consequent
+            } else {
+                expr = t.objectExpression([
                     t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
                     t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
                     t.objectProperty(
@@ -323,7 +327,10 @@ export function handleJsxExpression(
                         ])
                     ),
                     t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
-                ]),
+                ])
+            }
+            consequentResult = {
+                expression: expr,
                 statements: []
             };
         }
@@ -337,8 +344,11 @@ export function handleJsxExpression(
             );
         } else if (!t.isJSXEmptyExpression(alternate)) {
             // Handle non-JSX expressions in the alternate
-            alternateResult = {
-                expression: t.objectExpression([
+            let expr: t.Expression
+            if (isParentText) {
+                expr = alternate
+            } else {
+                expr = t.objectExpression([
                     t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
                     t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
                     t.objectProperty(
@@ -351,7 +361,10 @@ export function handleJsxExpression(
                         ])
                     ),
                     t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
-                ]),
+                ]);
+            }
+            alternateResult = {
+                expression: expr,
                 statements: []
             };
         }
@@ -421,7 +434,25 @@ export function handleJsxExpression(
         if (stateDependency) {
             // Create placeholder with unique ID
             const placeholderId = t.stringLiteral(expressionId);
-
+            let expr:t.Expression
+            if(isParentText){
+                expr=expression;
+            }else{
+                expr=t.objectExpression([
+                    t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
+                    t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
+                    t.objectProperty(
+                        t.identifier('props'),
+                        t.objectExpression([
+                            t.objectProperty(
+                                t.identifier('children'),
+                                t.arrayExpression([expression])
+                            )
+                        ])
+                    ),
+                    t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
+                ])
+            }
             // Effect to update text content
             const effectBody = t.blockStatement([
                 t.expressionStatement(
@@ -429,20 +460,7 @@ export function handleJsxExpression(
                         t.memberExpression(parentElement, t.identifier('insertChild')),
                         [
                             placeholderId,
-                            t.objectExpression([
-                                t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
-                                t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
-                                t.objectProperty(
-                                    t.identifier('props'),
-                                    t.objectExpression([
-                                        t.objectProperty(
-                                            t.identifier('children'),
-                                            t.arrayExpression([expression])
-                                        )
-                                    ])
-                                ),
-                                t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
-                            ])
+                            expr
                         ]
                     )
                 )
@@ -563,7 +581,8 @@ export function handleJsxElement(
                 const expressionStatements = handleJsxExpression(
                     path.get(`children.${index}`) as NodePath<t.JSXExpressionContainer>,
                     funcState,
-                    elementVariable
+                    elementVariable,
+                    elementName === "text"
                 );
                 childrenResults.push({expression: null, statements: expressionStatements});
             } else if (t.isConditionalExpression(exp) &&
@@ -573,7 +592,8 @@ export function handleJsxElement(
                 const expressionStatements = handleJsxExpression(
                     path.get(`children.${index}`) as NodePath<t.JSXExpressionContainer>,
                     funcState,
-                    elementVariable
+                    elementVariable,
+                    elementName === "text"
                 );
                 childrenResults.push({expression: null, statements: expressionStatements});
             } else {
@@ -583,7 +603,8 @@ export function handleJsxElement(
                     const expressionStatements = handleJsxExpression(
                         path.get(`children.${index}`) as NodePath<t.JSXExpressionContainer>,
                         funcState,
-                        elementVariable
+                        elementVariable,
+                        elementName === "text"
                     );
                     childrenResults.push({expression: null, statements: expressionStatements});
                 } else {
