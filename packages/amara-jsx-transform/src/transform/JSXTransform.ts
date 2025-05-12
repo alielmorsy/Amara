@@ -208,7 +208,7 @@ function processAttrs(
 interface JsxResult {
     expression: t.Expression | t.SpreadElement | null;
     statements: t.Statement[];
-    deps?: t.Expression[]
+    deps?: t.Identifier[]
 }
 
 /**
@@ -219,14 +219,15 @@ export function handleJsxExpression(
     funcState: FunctionScope,
     parentElement: t.Identifier,
     isParentText: boolean
-): t.Statement[] {
+): { statements: t.Statement[], deps: t.Identifier[] } {
     const expression = path.node.expression;
     const statements: t.Statement[] = [];
+    const deps: t.Identifier[] = [];
     const expressionId = generateShortId();
 
     // Skip empty expressions like {}
     if (t.isJSXEmptyExpression(expression)) {
-        return statements;
+        return {statements, deps};
     }
 
     // Handle &&-based conditional rendering: {condition && <Component/>}
@@ -236,6 +237,9 @@ export function handleJsxExpression(
 
         // Get state dependencies from the condition
         const stateDependency = containsStateGetterCall(condition, funcState);
+        if (stateDependency) {
+            deps.push(t.identifier(stateDependency));
+        }
 
         if (t.isJSXElement(jsxContent)) {
             // Transform the JSX element
@@ -274,17 +278,22 @@ export function handleJsxExpression(
                 ]);
 
                 // Create the effect with appropriate dependencies
-                const dependencies = stateDependency ? [t.identifier(stateDependency)] : [];
+                const effectDeps = stateDependency ? [t.identifier(stateDependency)] : [];
                 const effectCall = t.callExpression(
                     t.identifier('effect'),
                     [
                         t.arrowFunctionExpression([], effectBody),
-                        t.arrayExpression(dependencies)
+                        t.arrayExpression(effectDeps)
                     ]
                 );
 
                 statements.push(...jsxResult.statements);
                 statements.push(t.expressionStatement(effectCall));
+
+                // Collect dependencies from jsxResult if available
+                if (jsxResult.deps) {
+                    deps.push(...jsxResult.deps);
+                }
             }
         }
     }
@@ -296,6 +305,9 @@ export function handleJsxExpression(
 
         // Get state dependencies from the condition
         const stateDependency = containsStateGetterCall(condition, funcState);
+        if (stateDependency) {
+            deps.push(t.identifier(stateDependency));
+        }
 
         // Handle JSX in both branches
         let consequentResult: JsxResult | null = null;
@@ -308,11 +320,20 @@ export function handleJsxExpression(
                 undefined,
                 true
             );
+            // Collect dependencies from consequent
+            if (consequentResult.deps) {
+                deps.push(...consequentResult.deps);
+            }
         } else if (!t.isJSXEmptyExpression(consequent)) {
             // Handle non-JSX expressions in the consequent
             let expr: t.Expression
             if (isParentText) {
-                expr = consequent
+                expr = consequent;
+                // Check for dependencies in the consequent expression
+                const consequentDep = containsStateGetterCall(consequent, funcState);
+                if (consequentDep) {
+                    deps.push(t.identifier(consequentDep));
+                }
             } else {
                 expr = t.objectExpression([
                     t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
@@ -327,7 +348,12 @@ export function handleJsxExpression(
                         ])
                     ),
                     t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
-                ])
+                ]);
+                // Check for dependencies in the consequent expression
+                const consequentDep = containsStateGetterCall(consequent, funcState);
+                if (consequentDep) {
+                    deps.push(t.identifier(consequentDep));
+                }
             }
             consequentResult = {
                 expression: expr,
@@ -342,11 +368,20 @@ export function handleJsxExpression(
                 undefined,
                 true
             );
+            // Collect dependencies from alternate
+            if (alternateResult.deps) {
+                deps.push(...alternateResult.deps);
+            }
         } else if (!t.isJSXEmptyExpression(alternate)) {
             // Handle non-JSX expressions in the alternate
             let expr: t.Expression
             if (isParentText) {
-                expr = alternate
+                expr = alternate;
+                // Check for dependencies in the alternate expression
+                const alternateDep = containsStateGetterCall(alternate, funcState);
+                if (alternateDep) {
+                    deps.push(t.identifier(alternateDep));
+                }
             } else {
                 expr = t.objectExpression([
                     t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
@@ -362,6 +397,11 @@ export function handleJsxExpression(
                     ),
                     t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
                 ]);
+                // Check for dependencies in the alternate expression
+                const alternateDep = containsStateGetterCall(alternate, funcState);
+                if (alternateDep) {
+                    deps.push(t.identifier(alternateDep));
+                }
             }
             alternateResult = {
                 expression: expr,
@@ -408,12 +448,12 @@ export function handleJsxExpression(
         }
 
         // Create the effect with appropriate dependencies
-        const dependencies = stateDependency ? [t.identifier(stateDependency)] : [];
+        const effectDeps = stateDependency ? [t.identifier(stateDependency)] : [];
         const effectCall = t.callExpression(
             t.identifier('effect'),
             [
                 t.arrowFunctionExpression([], t.blockStatement(effectBodyStatements)),
-                t.arrayExpression(dependencies)
+                t.arrayExpression(effectDeps)
             ]
         );
 
@@ -432,13 +472,15 @@ export function handleJsxExpression(
         const stateDependency = containsStateGetterCall(expression, funcState);
 
         if (stateDependency) {
+            deps.push(t.identifier(stateDependency));
+
             // Create placeholder with unique ID
             const placeholderId = t.stringLiteral(expressionId);
-            let expr:t.Expression
-            if(isParentText){
-                expr=expression;
-            }else{
-                expr=t.objectExpression([
+            let expr: t.Expression
+            if (isParentText) {
+                expr = expression;
+            } else {
+                expr = t.objectExpression([
                     t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
                     t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
                     t.objectProperty(
@@ -504,7 +546,7 @@ export function handleJsxExpression(
         }
     }
 
-    return statements;
+    return {statements, deps};
 }
 
 export function handleJsxElement(
@@ -581,7 +623,7 @@ export function handleJsxElement(
                     elementVariable,
                     elementName === "text"
                 );
-                childrenResults.push({expression: null, statements: expressionStatements});
+                childrenResults.push({expression: null, ...expressionStatements});
             } else if (t.isConditionalExpression(exp) &&
                 (t.isJSXElement(exp.consequent) || t.isJSXElement(exp.alternate))) {
                 forceStatic = originalForceStatic;
@@ -592,7 +634,7 @@ export function handleJsxElement(
                     elementVariable,
                     elementName === "text"
                 );
-                childrenResults.push({expression: null, statements: expressionStatements});
+                childrenResults.push({expression: null, ...expressionStatements});
             } else {
                 forceStatic = originalForceStatic;
                 const variables = containsStateGetterCall(exp, funcState);
@@ -603,9 +645,13 @@ export function handleJsxElement(
                         elementVariable,
                         elementName === "text"
                     );
-                    childrenResults.push({expression: null, statements: expressionStatements});
+                    childrenResults.push({expression: null, ...expressionStatements});
                 } else {
-                    childrenResults.push({expression: exp, statements: []});
+                    const result: JsxResult = {expression: exp, statements: []};
+                    if (variables) {
+                        result.deps = [t.identifier(variables)];
+                    }
+                    childrenResults.push(result);
                 }
             }
         }
@@ -640,9 +686,12 @@ export function handleJsxElement(
             return {expression: holder, statements: [...childrenStatement, t.expressionStatement(effect)]};
         }
         const depsArray = dynamicProps.map((v) => t.identifier(v[3]!));
-        if (dynamicProps.length === 0) {
+        const childrenDeps = childrenResults.flatMap(result => result.deps || []);
+        depsArray.push(...childrenDeps);
+        if (depsArray.length === 0 || originalForceStatic) {
             return {expression: staticObject, statements: childrenStatement, deps: depsArray};
         }
+
         if (parentVariable) {
 
             const updater = t.callExpression(t.memberExpression(parentVariable, t.identifier("insertChild")), [
