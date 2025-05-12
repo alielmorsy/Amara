@@ -516,9 +516,6 @@ export function handleJsxElement(
 ): JsxResult {
     const isInReturnStatement = path.parentPath && path.parentPath.isReturnStatement();
     const isVariable = path.parentPath.isVariableDeclarator();
-    if (!t.isJSXIdentifier(path.node.openingElement.name)) {
-        return {expression: null, statements: []};
-    }
 
     const elementName = getJsxElementName(path.node.openingElement);
     const isInternal = INTERNAL_COMPONENTS.includes(elementName);
