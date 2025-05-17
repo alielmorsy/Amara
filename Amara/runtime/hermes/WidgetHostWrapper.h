@@ -32,6 +32,8 @@ public:
 
     JSI_FUNCTION(insertChildren);
 
+    JSI_FUNCTION(removeChildren);
+
     // For holder widget only
     JSI_FUNCTION(setChild);
 
