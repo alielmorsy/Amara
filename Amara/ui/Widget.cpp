@@ -223,6 +223,16 @@ void ContainerWidget::insertChild(IEngine *engine, std::string id, std::unique_p
     }
 }
 
+void ContainerWidget::insertChild(std::string id, SharedWidget widget) {
+    widget->setParent(weak_from_this());
+    if (insertedChildren.count(id) == 0) {
+        insertedChildren[id] = _children.size();
+        _children.push_back(std::move(widget));
+    } else {
+        _children[insertedChildren[id]] = widget;
+    }
+}
+
 void ContainerWidget::replaceChild(size_t index, const SharedWidget &widget) {
     //Freeing the widget and its children;
     _children[index]->resetPointer();
@@ -266,4 +276,12 @@ void ContainerWidget::insertChild(size_t position, std::shared_ptr<Widget> widge
 void TextWidget::insertChild(std::string &id, const std::string &text) {
     _children.emplace_back(text);
     insertedChildren[id] = _children.size() - 1;
+}
+
+void HolderWidget::setChild(IEngine *engine, std::unique_ptr<WidgetHolder> holder) {
+    if (child) {
+        child = _component->reconcileObject(child, holder);
+    } else {
+        child = holder->execute(engine);
+    }
 }

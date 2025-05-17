@@ -13,6 +13,7 @@ export interface FunctionScope {
     innerFunctions: Array<{
         scopedVariables: Set<string>;
     }>
+    foundChildren: boolean
 }
 
 export type LiteralType = string | number | boolean

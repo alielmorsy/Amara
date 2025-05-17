@@ -8,6 +8,8 @@
 #include "HermesArray.h"
 #include "../utils/ScopedTimer.h"
 
+static char *CHILDREN_ID = "CHILDREN_SPECIAL_ID";
+
 Value WidgetHostWrapper::get(Runtime &runtime, const PropNameID &propName) {
     auto name = propName.utf8(runtime);
     if (name == "addText") {
@@ -49,8 +51,17 @@ Value WidgetHostWrapper::get(Runtime &runtime, const PropNameID &propName) {
                 return insertChildren(rt, args, count);
             });
     }
-
+    if (name == "removeChildren") {
+        return Function::createFromHostFunction(
+            runtime,
+            propName,
+            1, [this](Runtime &rt, const Value &thisValue, const Value *args, const size_t count) {
+                return insertChildren(rt, args, count);
+            });
+    }
     if (name == "setChild") {
+        static int i = 0;
+        i += 1;
         return Function::createFromHostFunction(
             runtime,
             propName,
@@ -150,10 +161,18 @@ Value WidgetHostWrapper::insertChild(Runtime &rt, const Value *args, size_t coun
         throw JSError(rt, "You cannot use insertChild over a non container widget");
     }
     if (args[1].isObject()) {
-        auto holder = engine->getWidgetHolder(args[1]);
-
-        containerWidget->insertChild(engine, std::move(id), std::move(holder));
-        int x = 0;
+        auto obj = args[1].asObject(rt);
+        if (obj.isHostObject<WidgetHostWrapper>(rt)) {
+            auto newWidget = obj.asHostObject<WidgetHostWrapper>(rt)->nativeWidget.lock();
+            if (!newWidget->is<HolderWidget>()) {
+                throw JSError(rt, "You cannot use insertChild non static child or a holder");
+            }
+            auto holder = newWidget->as<HolderWidget>();
+            containerWidget->insertChild(std::move(id), holder->child);
+        } else {
+            auto holder = engine->getWidgetHolder(args[1]);
+            containerWidget->insertChild(engine, std::move(id), std::move(holder));
+        }
     } else {
         //State variable
     }
@@ -164,7 +183,7 @@ Value WidgetHostWrapper::insertChild(Runtime &rt, const Value *args, size_t coun
 Value WidgetHostWrapper::insertChildren(Runtime &rt, const Value *args, size_t count) {
     auto &children = args[0];
     auto widget = nativeWidget.lock();
-    assert(widget->is<ContainerWidget>() && "Width is not a container widget");
+    assert(widget->is<ContainerWidget>() && "Widget is not a container widget");
     auto containerWidget = widget->as<ContainerWidget>();
     auto arr = std::make_unique<HermesArray>(rt, Value(rt, children));
     auto emptyProps = Value();
@@ -176,8 +195,16 @@ Value WidgetHostWrapper::insertChildren(Runtime &rt, const Value *args, size_t c
         auto w = engine->getWidgetHolder(val)->execute(engine);
         holderContainer->addChild(w);
     }
-    containerWidget->addChild(holder);
+    containerWidget->insertChild(CHILDREN_ID, holder);
     return Value::undefined();
+}
+
+Value WidgetHostWrapper::removeChildren(Runtime &rt, const Value *args, size_t count) {
+    auto widget = nativeWidget.lock();
+    assert(widget->is<ContainerWidget>() && "Widget is not a container widget");
+    auto containerWidget = widget->as<ContainerWidget>();
+    std::string id = CHILDREN_ID;
+    containerWidget->removeChild(id);
 }
 
 Value WidgetHostWrapper::setChild(Runtime &rt, const Value *args, size_t count) {
@@ -185,7 +212,7 @@ Value WidgetHostWrapper::setChild(Runtime &rt, const Value *args, size_t count) 
     assert(widget->is<HolderWidget>() && "Widget is not a container widget");
     auto holderWidget = widget->as<HolderWidget>();
     auto widgetHolder = engine->getWidgetHolder(args[0]);
-    holderWidget->setChild(widgetHolder->execute(engine));
+    holderWidget->setChild(engine, std::move(widgetHolder));
     return Value::undefined();
 }
 

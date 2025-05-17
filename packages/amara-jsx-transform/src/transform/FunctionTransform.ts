@@ -25,17 +25,24 @@ export function processFunc(path: BabelFunction) {
     const funcState: FunctionScope = {
         variables: new Set<string>(),
         specialFlags: {},
-        innerFunctions: []
+        innerFunctions: [],
+        foundChildren: false
     }
 
     path.node.params.forEach(param => {
         if (t.isIdentifier(param)) {
             // Simple prop like: (props) => ...
-            funcState.variables.add(param.name);
+            if (param.name === "children") {
+                funcState.foundChildren = true;
+            } else
+                funcState.variables.add(param.name);
         } else if (t.isObjectPattern(param)) {
             // Destructured props like: ({ name, age }) => ...
             param.properties.forEach(prop => {
                 if (t.isObjectProperty(prop) && t.isIdentifier(prop.key)) {
+                    if (prop.key.name === "children") {
+                        funcState.foundChildren = true;
+                    }
                     funcState.variables.add(prop.key.name);
                 } else if (t.isRestElement(prop) && t.isIdentifier(prop.argument)) {
                     funcState.variables.add(prop.argument.name);
@@ -308,7 +315,10 @@ function handleReactiveVariablesInObject(path: NodePath<t.ObjectExpression>, fun
 
 function isReactiveVariable(node: t.Expression, funcState: FunctionScope) {
     return t.isIdentifier(node) &&
-        funcState.variables.has(node.name);
+        funcState.variables.has(node.name) &&
+        (
+            !funcState.foundChildren || node.name !== "children"
+        );
 }
 
 function wrapWithToRaw(node: t.Expression) {

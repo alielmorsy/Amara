@@ -117,23 +117,24 @@ std::shared_ptr<Widget> ComponentContext::reconcileObject(const std::shared_ptr<
     auto &subComponent = old->component();
     //bool sameComponent = subComponent.get() == this;
 
-    auto componentName = newCaller->getComponentName();
-
 
     auto &newProps = newCaller->props();
     if (newCaller->isComponent()) {
         if (newCaller->sameComponent(subComponent->componentObject)) {
+            //In case multiple reconcilation happens at the same tiem
+            auto originalReconcilation = subComponent->_reconciliationStarted;
             subComponent->_reconciliationStarted = true;
             subComponent->_updateStates();
 
             engine->pushExistingComponent(subComponent);
             auto result = newCaller->execute(engine);
-            subComponent->_reconciliationStarted = false;
+            subComponent->_reconciliationStarted = originalReconcilation;
             return result;
         }
         //TODO: We need unmounting here
         return newCaller->execute(engine);
     }
+    auto componentName = newCaller->getComponentName();
     if (componentName == "div" && old->is<ContainerWidget>()) {
         subComponent->_reconciliationStarted = true;
         engine->compareProps(old->propMap, newProps);

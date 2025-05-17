@@ -299,6 +299,12 @@ function TaskBoard() {
             };
         });
     };
+    effect(() => {
+        setNewTask("3lawy")
+    }, [])
+    effect(() => {
+        handleAddTask()
+    }, [newTask])
     {
         const _parent = createElement("div", {
             style: {
@@ -332,7 +338,16 @@ function TaskBoard() {
                             task: task,
                             key: col,
                             col: col,
-                            "children": []
+                            "children": [
+                                {
+                                    "$$internalComponent": true,
+                                    "component": 'text',
+                                    "props": {
+                                        "children": ["MYYY"]
+                                    },
+                                    "id": "BVRijwT7"
+                                }
+                            ]
                         },
                         "id": "j2NTT4PU"
                     }))]
@@ -344,8 +359,8 @@ function TaskBoard() {
         const _element2 = createElement("div", {});
         effect(() => {
             _element2.insertChild("Os9p4w13", {
-                "$$internalComponent": false,
-                "component": input,
+                "$$internalComponent": true,
+                "component": "div",
                 "props": {
                     value: toRaw(newTask),
                     onChange: e => setNewTask(e.target.value),
@@ -356,7 +371,7 @@ function TaskBoard() {
         }, [newTask]);
         _element2.addStaticChild({
             "$$internalComponent": true,
-            "component": "button",
+            "component": "text",
             "props": {
                 onClick: handleAddTask,
                 "children": ["Add Task"]
@@ -369,12 +384,13 @@ function TaskBoard() {
     }
 }
 
-function Child({
+
+function Child({children,
                    task,
                    col,
                    moveTask
                }) {
-    beginComponentInit("RZFCnR0I");
+    beginComponentInit("KEOKV9N8");
     {
         const _parent4 = createElement("div", {
             key: toRaw(task),
@@ -385,42 +401,37 @@ function Child({
         effect(() => {
             _parent4.key = task;
         }, [task]);
-        const _element5 = createElement("text", {});
+        const _element6 = createElement("text", {});
         effect(() => {
-            _element5.insertChild("Nfro66sS", {
-                $$internalComponent: true,
-                component: "text",
-                props: {
-                    children: [toRaw(task)]
-                },
-                id: "PmHbvf5b"
-            });
+            _element6.insertChild("lPjJ8JRt", toRaw(task));
         }, [task]);
-        _parent4.addChild(_element5);
-        const _element6 = createElement("div", {});
+        _parent4.addChild(_element6);
+        const _element7 = createElement("div", {});
+        _element7.addStaticChild({
+            "$$internalComponent": true,
+            "component": "text",
+            "props": {
+                "children": ["Move To"]
+            },
+            "id": "5IAYCAQ6"
+        });
         const _holder = createElement("holder", {});
         effect(() => {
             _holder.setChild({
                 "$$internalComponent": true,
-                "component": "button",
+                "component": "text",
                 "props": {
                     onClick: () => moveTask(toRaw(task), toRaw(col), 'todo'),
-                    "children": [{
-                        "$$internalComponent": true,
-                        "component": "text",
-                        props: {
-                            children: ["To Do"]
-                        }
-                    }]
+                    "children": ["To Do"]
                 },
-                "id": "mZFsRiZN"
+                "id": "P567npIC"
             });
         }, [moveTask]);
         effect(() => {
             if (col !== 'todo') {
-                _element6.insertChild("o25FKuXr", _holder);
+                _element7.insertChild("lRJuCVsR", _holder);
             } else {
-                _element6.removeChild("o25FKuXr");
+                _element7.removeChild("lRJuCVsR");
             }
         }, [col]);
         const _holder2 = createElement("holder", {});
@@ -432,14 +443,14 @@ function Child({
                     onClick: () => moveTask(toRaw(task), toRaw(col), 'doing'),
                     "children": ["Doing"]
                 },
-                "id": "GGNh9LPJ"
+                "id": "ENfwYMaT"
             });
         }, [moveTask]);
         effect(() => {
             if (col !== 'doing') {
-                _element6.insertChild("9cqzmBW", _holder2);
+                _element7.insertChild("GGN60Egd", _holder2);
             } else {
-                _element6.removeChild("9cqzmBW");
+                _element7.removeChild("GGN60Egd");
             }
         }, [col]);
         const _holder3 = createElement("holder", {});
@@ -451,17 +462,19 @@ function Child({
                     onClick: () => moveTask(toRaw(task), toRaw(col), 'done'),
                     "children": ["Done"]
                 },
-                "id": "F4PNCv0R"
+                "id": "yLCTEA3c"
             });
         }, [moveTask]);
         effect(() => {
             if (col !== 'done') {
-                _element6.insertChild("mlth6TpT", _holder3);
+                _element7.insertChild("870Ncen", _holder3);
             } else {
-                _element6.removeChild("mlth6TpT");
+                _element7.removeChild("870Ncen");
             }
         }, [col]);
-        _parent4.addChild(_element6);
+        _parent4.addChild(_element7);
+        print("Children",children)
+        _parent4.insertChildren(children)
         endComponent();
         return _parent4;
     }

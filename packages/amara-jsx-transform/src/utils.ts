@@ -78,7 +78,10 @@ export function containsStateGetterCall(node: t.Node, functionScope: FunctionSco
     let hasStateGetter: string | null = null;
 
     //It's just a function which hold the proxy reference
-    if (t.isCallExpression(node)) {
+    if (
+        t.isCallExpression(node) ||
+        (!t.isExpression(node) && !t.isBlockStatement(node) && !t.isStatement(node))
+    ) {
         return null;
     }
     // Check if the node is a direct reference to a state getter

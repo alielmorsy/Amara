@@ -131,6 +131,8 @@ public:
 
     void insertChild(IEngine *engine, std::string id, std::unique_ptr<WidgetHolder> holder);
 
+    void insertChild(std::string id, SharedWidget widget);
+
 
     void goReset() override {
         //Children components need to be freed too
@@ -303,9 +305,7 @@ public:
         child.reset();
     };
 
-    void setChild(std::shared_ptr<Widget> child) {
-        this->child = child;
-    }
+    void setChild(IEngine *engine, std::unique_ptr<WidgetHolder> holder) ;
 
     void printTree(std::string prefix, bool isLast) override {
         cout << prefix;

@@ -214,6 +214,7 @@ interface JsxResult {
 /**
  * Handle JSX expressions such as {condition && <Component/>} or {condition ? <A/> : <B/>}
  */
+
 export function handleJsxExpression(
     path: NodePath<t.JSXExpressionContainer>,
     funcState: FunctionScope,
@@ -230,320 +231,503 @@ export function handleJsxExpression(
         return {statements, deps};
     }
 
-    // Handle &&-based conditional rendering: {condition && <Component/>}
+    // Handle logical expressions: condition && <Component/>, condition || <Component/>, condition ?? <Component/>
     if (t.isLogicalExpression(expression)) {
-        const condition = expression.left;
-        const jsxContent = expression.right;
-
-        // Get state dependencies from the condition
-        const stateDependency = containsStateGetterCall(condition, funcState);
-        if (stateDependency) {
-            deps.push(t.identifier(stateDependency));
-        }
-
-        if (t.isJSXElement(jsxContent)) {
-            // Transform the JSX element
-            const jsxResult = handleJsxElement(
-                path.get('expression.right') as NodePath<t.JSXElement>,
-                funcState,
-                undefined,
-                true
-            );
-
-            if (jsxResult.expression) {
-                // Create placeholder in the parent element with a unique ID
-                const placeholderId = t.stringLiteral(expressionId);
-
-                // Create effect to update the conditional rendering
-                const effectBody = t.blockStatement([
-                    t.ifStatement(
-                        condition,
-                        t.blockStatement([
-                            t.expressionStatement(
-                                t.callExpression(
-                                    t.memberExpression(parentElement, t.identifier('insertChild')),
-                                    [placeholderId, jsxResult.expression]
-                                )
-                            )
-                        ]),
-                        t.blockStatement([
-                            t.expressionStatement(
-                                t.callExpression(
-                                    t.memberExpression(parentElement, t.identifier('removeChild')),
-                                    [placeholderId]
-                                )
-                            )
-                        ])
-                    )
-                ]);
-
-                // Create the effect with appropriate dependencies
-                const effectDeps = stateDependency ? [t.identifier(stateDependency)] : [];
-                const effectCall = t.callExpression(
-                    t.identifier('effect'),
-                    [
-                        t.arrowFunctionExpression([], effectBody),
-                        t.arrayExpression(effectDeps)
-                    ]
-                );
-
-                statements.push(...jsxResult.statements);
-                statements.push(t.expressionStatement(effectCall));
-
-                // Collect dependencies from jsxResult if available
-                if (jsxResult.deps) {
-                    deps.push(...jsxResult.deps);
-                }
-            }
-        }
+        return handleLogicalExpression(
+            expression,
+            path,
+            funcState,
+            parentElement,
+            isParentText,
+            expressionId,
+            statements,
+            deps
+        );
     }
-    // Handle ternary expressions: {condition ? <A/> : <B/>}
+    // Handle ternary expressions: condition ? <A/> : <B/>
     else if (t.isConditionalExpression(expression)) {
-        const condition = expression.test;
-        const consequent = expression.consequent;
-        const alternate = expression.alternate;
+        return handleConditionalExpression(
+            expression,
+            path,
+            funcState,
+            parentElement,
+            isParentText,
+            expressionId,
+            statements,
+            deps
+        );
+    }
+    // Handle other expressions (like simple variables or function calls)
+    else {
+        return handleSimpleExpression(
+            expression,
+            funcState,
+            parentElement,
+            isParentText,
+            expressionId,
+            statements,
+            deps
+        );
+    }
+}
 
-        // Get state dependencies from the condition
-        const stateDependency = containsStateGetterCall(condition, funcState);
-        if (stateDependency) {
-            deps.push(t.identifier(stateDependency));
-        }
+/**
+ * Handles logical expressions like &&, ||, ??
+ */
+function handleLogicalExpression(
+    expression: t.LogicalExpression,
+    path: NodePath<t.JSXExpressionContainer>,
+    funcState: FunctionScope,
+    parentElement: t.Identifier,
+    isParentText: boolean,
+    expressionId: string,
+    statements: t.Statement[],
+    deps: t.Identifier[]
+): { statements: t.Statement[], deps: t.Identifier[] } {
+    const {operator, left: condition, right: content} = expression;
 
-        // Handle JSX in both branches
-        let consequentResult: JsxResult | null = null;
-        let alternateResult: JsxResult | null = null;
+    // Get state dependencies from the condition
+    const stateDependency = containsStateGetterCall(condition, funcState);
+    if (stateDependency) {
+        deps.push(t.identifier(stateDependency));
+    }
 
-        if (t.isJSXElement(consequent)) {
-            consequentResult = handleJsxElement(
-                path.get('expression.consequent') as NodePath<t.JSXElement>,
-                funcState,
-                undefined,
-                true
-            );
-            // Collect dependencies from consequent
-            if (consequentResult.deps) {
-                deps.push(...consequentResult.deps);
-            }
-        } else if (!t.isJSXEmptyExpression(consequent)) {
-            // Handle non-JSX expressions in the consequent
-            let expr: t.Expression
-            if (isParentText) {
-                expr = consequent;
-                // Check for dependencies in the consequent expression
-                const consequentDep = containsStateGetterCall(consequent, funcState);
-                if (consequentDep) {
-                    deps.push(t.identifier(consequentDep));
-                }
-            } else {
-                expr = t.objectExpression([
-                    t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
-                    t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
-                    t.objectProperty(
-                        t.identifier('props'),
-                        t.objectExpression([
-                            t.objectProperty(
-                                t.identifier('children'),
-                                t.arrayExpression([consequent as t.Expression])
-                            )
-                        ])
-                    ),
-                    t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
-                ]);
-                // Check for dependencies in the consequent expression
-                const consequentDep = containsStateGetterCall(consequent, funcState);
-                if (consequentDep) {
-                    deps.push(t.identifier(consequentDep));
-                }
-            }
-            consequentResult = {
-                expression: expr,
-                statements: []
-            };
-        }
+    if (t.isJSXElement(content)) {
+        return handleLogicalJsxContent(
+            operator,
+            condition,
+            content,
+            path,
+            funcState,
+            parentElement,
+            expressionId,
+            stateDependency,
+            statements,
+            deps
+        );
+    } else {
+        return handleLogicalNonJsxContent(
+            operator,
+            condition,
+            content,
+            funcState,
+            parentElement,
+            expressionId,
+            isParentText,
+            stateDependency,
+            statements,
+            deps
+        );
+    }
+}
 
-        if (t.isJSXElement(alternate)) {
-            alternateResult = handleJsxElement(
-                path.get('expression.alternate') as NodePath<t.JSXElement>,
-                funcState,
-                undefined,
-                true
-            );
-            // Collect dependencies from alternate
-            if (alternateResult.deps) {
-                deps.push(...alternateResult.deps);
-            }
-        } else if (!t.isJSXEmptyExpression(alternate)) {
-            // Handle non-JSX expressions in the alternate
-            let expr: t.Expression
-            if (isParentText) {
-                expr = alternate;
-                // Check for dependencies in the alternate expression
-                const alternateDep = containsStateGetterCall(alternate, funcState);
-                if (alternateDep) {
-                    deps.push(t.identifier(alternateDep));
-                }
-            } else {
-                expr = t.objectExpression([
-                    t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
-                    t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
-                    t.objectProperty(
-                        t.identifier('props'),
-                        t.objectExpression([
-                            t.objectProperty(
-                                t.identifier('children'),
-                                t.arrayExpression([alternate as t.Expression])
-                            )
-                        ])
-                    ),
-                    t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
-                ]);
-                // Check for dependencies in the alternate expression
-                const alternateDep = containsStateGetterCall(alternate, funcState);
-                if (alternateDep) {
-                    deps.push(t.identifier(alternateDep));
-                }
-            }
-            alternateResult = {
-                expression: expr,
-                statements: []
-            };
-        }
+/**
+ * Handles JSX content in logical expressions
+ */
+function handleLogicalJsxContent(
+    operator: string,
+    condition: t.Expression,
+    content: t.JSXElement,
+    path: NodePath<t.JSXExpressionContainer>,
+    funcState: FunctionScope,
+    parentElement: t.Identifier,
+    expressionId: string,
+    stateDependency: string | null,
+    statements: t.Statement[],
+    deps: t.Identifier[]
+): { statements: t.Statement[], deps: t.Identifier[] } {
+    // Transform the JSX element
+    const jsxResult = handleJsxElement(
+        path.get('expression.right') as NodePath<t.JSXElement>,
+        funcState,
+        undefined,
+        true
+    );
 
+    if (jsxResult.expression) {
         // Create placeholder in the parent element with a unique ID
         const placeholderId = t.stringLiteral(expressionId);
 
-        const effectBodyStatements = [];
+        // Create the condition expression based on the operator
+        let conditionExpr = condition;
 
-        // Add condition branch
-        if (consequentResult && consequentResult.expression) {
-            effectBodyStatements.push(
-                t.ifStatement(
-                    condition,
-                    t.blockStatement([
-                        t.expressionStatement(
-                            t.callExpression(
-                                t.memberExpression(parentElement, t.identifier('insertChild')),
-                                [placeholderId, consequentResult.expression]
-                            )
-                        )
-                    ]),
-                    t.blockStatement([
-                        // If alternate exists, insert it, otherwise remove the child
-                        alternateResult && alternateResult.expression
-                            ? t.expressionStatement(
-                                t.callExpression(
-                                    t.memberExpression(parentElement, t.identifier('insertChild')),
-                                    [placeholderId, alternateResult.expression]
-                                )
-                            )
-                            : t.expressionStatement(
-                                t.callExpression(
-                                    t.memberExpression(parentElement, t.identifier('removeChild')),
-                                    [placeholderId]
-                                )
-                            )
-                    ])
-                )
-            );
+        // For || and ??, the condition needs to be inverted
+        if (operator === '||' || operator === '??') {
+            // Show content when condition is falsy: !condition
+            conditionExpr = t.unaryExpression('!', condition);
         }
+        // For && the condition remains as is: condition
+
+        // Create effect to update the conditional rendering
+        const effectBody = t.blockStatement([
+            t.ifStatement(
+                conditionExpr,
+                t.blockStatement([
+                    t.expressionStatement(
+                        t.callExpression(
+                            t.memberExpression(parentElement, t.identifier('insertChild')),
+                            [placeholderId, jsxResult.expression]
+                        )
+                    )
+                ]),
+                t.blockStatement([
+                    t.expressionStatement(
+                        t.callExpression(
+                            t.memberExpression(parentElement, t.identifier('removeChild')),
+                            [placeholderId]
+                        )
+                    )
+                ])
+            )
+        ]);
 
         // Create the effect with appropriate dependencies
         const effectDeps = stateDependency ? [t.identifier(stateDependency)] : [];
         const effectCall = t.callExpression(
             t.identifier('effect'),
             [
-                t.arrowFunctionExpression([], t.blockStatement(effectBodyStatements)),
+                t.arrowFunctionExpression([], effectBody),
                 t.arrayExpression(effectDeps)
             ]
         );
 
-        // Add all statements from both branches
-        if (consequentResult) {
-            statements.push(...consequentResult.statements);
-        }
-        if (alternateResult) {
-            statements.push(...alternateResult.statements);
-        }
-
+        statements.push(...jsxResult.statements);
         statements.push(t.expressionStatement(effectCall));
+
+        // Collect dependencies from jsxResult if available
+        if (jsxResult.deps) {
+            deps.push(...jsxResult.deps);
+        }
     }
-    // Handle other expressions (like simple variables or function calls)
-    else {
-        const stateDependency = containsStateGetterCall(expression, funcState);
 
-        if (stateDependency) {
-            deps.push(t.identifier(stateDependency));
+    return {statements, deps};
+}
 
-            // Create placeholder with unique ID
-            const placeholderId = t.stringLiteral(expressionId);
-            let expr: t.Expression
-            if (isParentText) {
-                expr = expression;
-            } else {
-                expr = t.objectExpression([
-                    t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
-                    t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
-                    t.objectProperty(
-                        t.identifier('props'),
-                        t.objectExpression([
-                            t.objectProperty(
-                                t.identifier('children'),
-                                t.arrayExpression([expression])
-                            )
-                        ])
-                    ),
-                    t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
-                ])
+/**
+ * Handles non-JSX content in logical expressions (variables, function calls, etc.)
+ */
+function handleLogicalNonJsxContent(
+    operator: string,
+    condition: t.Expression,
+    content: t.Expression,
+    funcState: FunctionScope,
+    parentElement: t.Identifier,
+    expressionId: string,
+    isParentText: boolean,
+    stateDependency: string | null,
+    statements: t.Statement[],
+    deps: t.Identifier[]
+): { statements: t.Statement[], deps: t.Identifier[] } {
+    const contentDep = containsStateGetterCall(content, funcState);
+
+    if (contentDep) {
+        if (funcState.foundChildren && contentDep === "children") {
+            // Create the condition expression based on the operator
+            let conditionExpr = condition;
+
+            // For || and ??, the condition needs to be inverted
+            if (operator === '||') {
+                // Show content when condition is falsy: !condition
+                conditionExpr = t.unaryExpression('!', condition);
+            } else if (operator === '??') {
+                // Show content when condition is null/undefined: condition == null
+                conditionExpr = t.binaryExpression(
+                    '==',
+                    condition,
+                    t.nullLiteral()
+                );
             }
-            // Effect to update text content
+            // For && the condition remains as is: condition
+
+            // Create effect to update the conditional rendering
             const effectBody = t.blockStatement([
-                t.expressionStatement(
-                    t.callExpression(
-                        t.memberExpression(parentElement, t.identifier('insertChild')),
-                        [
-                            placeholderId,
-                            expr
-                        ]
-                    )
+                t.ifStatement(
+                    conditionExpr,
+                    t.blockStatement([
+                        t.expressionStatement(
+                            t.callExpression(
+                                t.memberExpression(parentElement, t.identifier('insertChildren')),
+                                [t.identifier("children")]
+                            )
+                        )
+                    ]),
+                    t.blockStatement([
+                        t.expressionStatement(
+                            t.callExpression(
+                                t.memberExpression(parentElement, t.identifier('removeChildren')),
+                                []
+                            )
+                        )
+                    ])
                 )
             ]);
 
             // Create the effect with appropriate dependencies
+            const effectDeps = stateDependency ? [t.identifier(stateDependency)] : [];
             const effectCall = t.callExpression(
                 t.identifier('effect'),
                 [
                     t.arrowFunctionExpression([], effectBody),
-                    t.arrayExpression([t.identifier(stateDependency)])
+                    t.arrayExpression(effectDeps)
                 ]
             );
 
             statements.push(t.expressionStatement(effectCall));
+        }
+
+        if (stateDependency) {
+            deps.push(t.identifier(stateDependency));
+        }
+
+        if (contentDep && contentDep !== "children") {
+            deps.push(t.identifier(contentDep));
+        }
+    }
+
+    return {statements, deps};
+}
+
+/**
+ * Handles conditional (ternary) expressions: condition ? <A/> : <B/>
+ */
+function handleConditionalExpression(
+    expression: t.ConditionalExpression,
+    path: NodePath<t.JSXExpressionContainer>,
+    funcState: FunctionScope,
+    parentElement: t.Identifier,
+    isParentText: boolean,
+    expressionId: string,
+    statements: t.Statement[],
+    deps: t.Identifier[]
+): { statements: t.Statement[], deps: t.Identifier[] } {
+    const condition = expression.test;
+    const consequent = expression.consequent;
+    const alternate = expression.alternate;
+
+    // Get state dependencies from the condition
+    const stateDependency = containsStateGetterCall(condition, funcState);
+    if (stateDependency) {
+        deps.push(t.identifier(stateDependency));
+    }
+
+    // Handle JSX in both branches
+    let consequentResult = handleConditionalBranch(
+        consequent,
+        path.get('expression.consequent') as NodePath<any>,
+        funcState,
+        isParentText
+    );
+
+    let alternateResult = handleConditionalBranch(
+        alternate,
+        path.get('expression.alternate') as NodePath<any>,
+        funcState,
+        isParentText
+    );
+
+    // Collect dependencies from both branches
+    if (consequentResult.deps) {
+        deps.push(...consequentResult.deps);
+    }
+
+    if (alternateResult.deps) {
+        deps.push(...alternateResult.deps);
+    }
+
+    // Create placeholder in the parent element with a unique ID
+    const placeholderId = t.stringLiteral(expressionId);
+
+    const effectBodyStatements = [];
+
+    // Add condition branch
+    if (consequentResult.expression) {
+        effectBodyStatements.push(
+            t.ifStatement(
+                condition,
+                t.blockStatement([
+                    t.expressionStatement(
+                        t.callExpression(
+                            t.memberExpression(parentElement, t.identifier('insertChild')),
+                            [placeholderId, consequentResult.expression]
+                        )
+                    )
+                ]),
+                t.blockStatement([
+                    // If alternate exists, insert it, otherwise remove the child
+                    alternateResult.expression
+                        ? t.expressionStatement(
+                            t.callExpression(
+                                t.memberExpression(parentElement, t.identifier('insertChild')),
+                                [placeholderId, alternateResult.expression]
+                            )
+                        )
+                        : t.expressionStatement(
+                            t.callExpression(
+                                t.memberExpression(parentElement, t.identifier('removeChild')),
+                                [placeholderId]
+                            )
+                        )
+                ])
+            )
+        );
+    }
+
+    // Create the effect with appropriate dependencies
+    const effectDeps = stateDependency ? [t.identifier(stateDependency)] : [];
+    const effectCall = t.callExpression(
+        t.identifier('effect'),
+        [
+            t.arrowFunctionExpression([], t.blockStatement(effectBodyStatements)),
+            t.arrayExpression(effectDeps)
+        ]
+    );
+
+    // Add all statements from both branches
+    statements.push(...consequentResult.statements);
+    statements.push(...alternateResult.statements);
+    statements.push(t.expressionStatement(effectCall));
+
+    return {statements, deps};
+}
+
+/**
+ * Handles a branch of a conditional expression (consequent or alternate)
+ */
+function handleConditionalBranch(
+    expression: t.Expression,
+    path: NodePath<any>,
+    funcState: FunctionScope,
+    isParentText: boolean
+): JsxResult {
+    if (t.isJSXElement(expression)) {
+        return handleJsxElement(
+            path as NodePath<t.JSXElement>,
+            funcState,
+            undefined,
+            true
+        );
+    } else if (!t.isJSXEmptyExpression(expression)) {
+        // Handle non-JSX expressions
+        let expr: t.Expression;
+        const deps: t.Identifier[] = [];
+
+        if (isParentText || (funcState.foundChildren && t.isIdentifier(expression, {name: "children"}))) {
+            expr = expression;
         } else {
-            // For static content, directly insert it
-            statements.push(
+            expr = createTextComponentObject(expression);
+        }
+
+        // Check for dependencies in the expression
+        const expressionDep = containsStateGetterCall(expression, funcState);
+        if (expressionDep) {
+            deps.push(t.identifier(expressionDep));
+        }
+
+        return {
+            expression: expr,
+            statements: [],
+            deps
+        };
+    }
+
+    return {
+        expression: null,
+        statements: [],
+        deps: []
+    };
+}
+
+/**
+ * Creates a text component object for non-JSX expressions
+ */
+function createTextComponentObject(content: t.Expression): t.ObjectExpression {
+    return t.objectExpression([
+        t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
+        t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
+        t.objectProperty(
+            t.identifier('props'),
+            t.objectExpression([
+                t.objectProperty(
+                    t.identifier('children'),
+                    t.arrayExpression([content])
+                )
+            ])
+        ),
+        t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
+    ]);
+}
+
+/**
+ * Handles simple expressions like variables or function calls
+ */
+function handleSimpleExpression(
+    expression: t.Expression,
+    funcState: FunctionScope,
+    parentElement: t.Identifier,
+    isParentText: boolean,
+    expressionId: string,
+    statements: t.Statement[],
+    deps: t.Identifier[]
+): { statements: t.Statement[], deps: t.Identifier[] } {
+    const stateDependency = containsStateGetterCall(expression, funcState);
+
+    if (stateDependency) {
+        deps.push(t.identifier(stateDependency));
+
+        // Create placeholder with unique ID
+        const placeholderId = t.stringLiteral(expressionId);
+
+        let expr: t.Expression;
+        const isChildren = (funcState.foundChildren && t.isIdentifier(expression, {name: "children"}))
+        if (isParentText || isChildren) {
+            expr = expression;
+        } else {
+            expr = createTextComponentObject(expression);
+        }
+
+        // Effect to update text content
+        let effectBody: t.BlockStatement
+        if (isChildren) {
+            effectBody = t.blockStatement([
                 t.expressionStatement(
                     t.callExpression(
-                        t.memberExpression(parentElement, t.identifier('addStaticChild')),
-                        [
-                            t.objectExpression([
-                                t.objectProperty(t.identifier('$$internalComponent'), t.booleanLiteral(true)),
-                                t.objectProperty(t.identifier('component'), t.stringLiteral('text')),
-                                t.objectProperty(
-                                    t.identifier('props'),
-                                    t.objectExpression([
-                                        t.objectProperty(
-                                            t.identifier('children'),
-                                            t.arrayExpression([expression])
-                                        )
-                                    ])
-                                ),
-                                t.objectProperty(t.identifier('id'), t.stringLiteral(generateShortId()))
-                            ])
-                        ]
+                        t.memberExpression(parentElement, t.identifier('insertChildren')),
+                        [expression]
                     )
                 )
-            );
+            ]);
+        } else {
+            effectBody = t.blockStatement([
+                t.expressionStatement(
+                    t.callExpression(
+                        t.memberExpression(parentElement, t.identifier('insertChild')),
+                        [placeholderId, expr]
+                    )
+                )
+            ]);
         }
+
+
+        // Create the effect with appropriate dependencies
+        const effectCall = t.callExpression(
+            t.identifier('effect'),
+            [
+                t.arrowFunctionExpression([], effectBody),
+                t.arrayExpression(isChildren ? []:[t.identifier(stateDependency)])
+            ]
+        );
+
+        statements.push(t.expressionStatement(effectCall));
+    } else {
+        // For static content, directly insert it
+        statements.push(
+            t.expressionStatement(
+                t.callExpression(
+                    t.memberExpression(parentElement, t.identifier('addStaticChild')),
+                    [createTextComponentObject(expression)]
+                )
+            )
+        );
     }
 
     return {statements, deps};
