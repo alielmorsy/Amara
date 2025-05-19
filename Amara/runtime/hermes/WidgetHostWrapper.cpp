@@ -8,7 +8,7 @@
 #include "HermesArray.h"
 #include "../utils/ScopedTimer.h"
 
-static char *CHILDREN_ID = "CHILDREN_SPECIAL_ID";
+static const char *CHILDREN_ID = "CHILDREN_SPECIAL_ID";
 
 Value WidgetHostWrapper::get(Runtime &runtime, const PropNameID &propName) {
     auto name = propName.utf8(runtime);
@@ -109,13 +109,7 @@ Value WidgetHostWrapper::addChild(Runtime &rt, const Value *args, const size_t c
     // I am pretty sure we won't need that but just in case
     if (!obj.isHostObject(rt) && obj.hasProperty(rt, "$$internalComponent")) {
         throw JSError(rt, "You cannot add child this way anymore");
-        if (obj.getProperty(rt, "$$internalComponent").asBool()) return Value::undefined();
-        auto func = obj.getProperty(rt, "component");
-        auto props = obj.getProperty(rt, "props");
-        auto holder = std::make_unique<HermesWidgetHolder>(rt, std::make_unique<Value>(rt, func),
-                                                           std::make_unique<HermesPropMap>(rt, std::move(props)));
-        containerWidget->addStaticChild(engine, std::move(holder));
-        return Value::undefined();
+
     }
     auto child = obj.asHostObject<WidgetHostWrapper>(rt);
     auto childWidget = child->getNativeWidget();

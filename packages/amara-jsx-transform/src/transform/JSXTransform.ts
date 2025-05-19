@@ -713,7 +713,7 @@ function handleSimpleExpression(
             t.identifier('effect'),
             [
                 t.arrowFunctionExpression([], effectBody),
-                t.arrayExpression(isChildren ? []:[t.identifier(stateDependency)])
+                t.arrayExpression(isChildren ? [] : [t.identifier(stateDependency)])
             ]
         );
 
@@ -852,11 +852,20 @@ export function handleJsxElement(
         const childrenExpressions = childrenResults.map(result => result.expression!).filter(Boolean);
         const childrenStatement = childrenResults.flatMap(result => result.statements!).filter(Boolean);
         staticProps.properties.push(createObjectProperty("children", t.arrayExpression(childrenExpressions)));
+        const index = staticProps.properties.findIndex((item) => t.isObjectProperty(item) && t.isIdentifier(item.key, {name: "key"}));
+        let key: t.Expression
+        if (index!==-1) {
+            key = (staticProps.properties[index] as t.ObjectProperty).value as t.Identifier;
+            staticProps.properties.splice(index, 1)
+        } else {
+            key = t.identifier("undefined")
+        }
         const staticObject = t.objectExpression([
             createObjectProperty("$$internalComponent", t.booleanLiteral(isInternal)),
             createObjectProperty("component", isInternal ? t.stringLiteral(elementName) : t.identifier(elementName)),
             createObjectProperty("props", staticProps),
-            createObjectProperty("id", t.stringLiteral(generateShortId()))
+            createObjectProperty("id", t.stringLiteral(generateShortId())),
+            createObjectProperty("key", key)
         ]);
         if (originalForceStatic && canCreateHolder && dynamicProps.length > 0) {
             const holder = path.scope.generateUidIdentifier("holder")
