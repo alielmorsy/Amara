@@ -2,7 +2,7 @@ import crypto from "crypto";
 import {type NodePath, traverse, types as t} from '@babel/core'
 import {FunctionScope} from "./transform/types";
 
-export const INTERNAL_COMPONENTS = ['div', 'Button', 'button', 'ToggleButton', 'ul', 'li', 'h2', 'h1', 'lelo', 'span', 'text', 'holder', 'HOLDER_ELEMENT'];
+export const INTERNAL_COMPONENTS = ['div', 'Button', 'button', 'ToggleButton', 'ul', 'li', 'h2', 'h1', 'lelo', 'span', 'text', 'holder', 'HOLDER_ELEMENT', 'Fragment'];
 
 export function generateShortId(length = 12) {
     return crypto.randomBytes(Math.ceil(length / 2)).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, length);
@@ -350,29 +350,41 @@ function transformCallbackToObject(body: t.BlockStatement, valueParam: t.Identif
     ]);
 }
 
+// Fragment is already included in the exported INTERNAL_COMPONENTS array above
+
 /**
  * Extract the tag name from a JSX opening element
  */
 export function getJsxElementName(openingElement: t.JSXOpeningElement): string {
     const nameNode = openingElement.name;
+    
     if (t.isJSXIdentifier(nameNode)) {
         return nameNode.name;
     } else if (t.isJSXMemberExpression(nameNode)) {
-        // For JSX member expressions like Namespace.Component
-        let fullName = '';
+        // Handle member expressions like Namespace.Component
+        let result = '';
         let current: t.JSXMemberExpression | t.JSXIdentifier = nameNode;
-
+        
         while (t.isJSXMemberExpression(current)) {
-            fullName = '.' + current.property.name + fullName;
+            result = '.' + current.property.name + result;
             current = current.object;
         }
-
+        
         if (t.isJSXIdentifier(current)) {
-            fullName = current.name + fullName;
+            result = current.name + result;
         }
-
-        return fullName;
+        
+        return result;
+    } else {
+        // Fallback for other cases
+        return 'unknown';
     }
+}
 
-    throw new Error(`Unsupported JSX element name type: ${openingElement.name.type}`);
+/**
+ * Checks if a JSX element is a Fragment
+ */
+export function isFragment(element: t.JSXElement): boolean {
+    const elementName = getJsxElementName(element.openingElement);
+    return elementName === 'Fragment' || elementName === 'React.Fragment' || elementName === '<>';
 }

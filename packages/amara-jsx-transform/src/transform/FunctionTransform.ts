@@ -1,5 +1,5 @@
 import {type NodePath, types as t} from '@babel/core'
-import {containsStateGetterCall, generateShortId} from '../utils'
+import {containsStateGetterCall, generateShortId, isFragment} from '../utils'
 import {handleJsxElement} from "./JSXTransform";
 import type {BabelFunction, FunctionScope} from "./types";
 

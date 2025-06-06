@@ -1,0 +1,60 @@
+# Based on modern C++ best practices
+# https://clang.llvm.org/extra/clang-tidy/
+
+Checks: >
+  -*,
+  clang-diagnostic-*, 
+  clang-analyzer-*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  google-readability-casting,
+  google-readability-braces-around-statements,
+  google-readability-function-size,
+  google-readability-namespace-comments,
+  google-readability-todo,
+  google-runtime-int,
+  google-runtime-references,
+  hicpp-*, 
+  llvm-header-guard,
+  llvm-include-order,
+  misc-*, 
+  modernize-*,
+  performance-*, 
+  readability-*,
+  portability-*,
+  zircon-temporary-objects
+
+CheckOptions:
+  # Enable specific options here if needed
+  modernize-use-trailing-return-type:
+    OnlyIfMultipleReturns: false
+  readability-function-cognitive-complexity:
+    CognitiveComplexityThreshold: 15
+  readability-identifier-naming:
+    # You can customize this based on your naming conventions
+    Case: CamelBack
+    Prefix: ''
+    Suffix: ''
+  readability-uppercase-literal-suffix:
+    IgnoreMacros: true
+  misc-misleading-indentation:
+    IgnorePreprocessorLines: true
+  modernize-pass-by-value:
+    TypesThatShouldNotBePassedByValue:
+      '::std::string;::std::vector;::std::map;::std::unordered_map;'
+  performance-for-range-copy:
+    MakePublic: true
+  clang-analyzer-optin.performance.Padding:
+    AnnotateResults: true
+  llvm-include-order:
+    IncludeStyle: llvm
+  google-build-using-namespace:
+    Namespaces: 'std;boost'
+
+WarningsAsErrors: ''
+
+HeaderFilterRegex: ''
+
+SystemHeaders: false
+
+FormatStyle: file

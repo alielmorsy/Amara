@@ -740,10 +740,18 @@ export function handleJsxElement(
     forceStatic = false,
     canCreateHolder = true
 ): JsxResult {
+    // Check if this is a Fragment
+    const jsxElementName = getJsxElementName(path.node.openingElement);
+    const isFragment = jsxElementName === 'Fragment' || jsxElementName === 'React.Fragment';
+
+    // If this is a Fragment, we'll handle it specially
+    if (isFragment) {
+        return handleFragment(path, funcState, parentVariable, forceStatic);
+    }
     const isInReturnStatement = path.parentPath && path.parentPath.isReturnStatement();
     const isVariable = path.parentPath.isVariableDeclarator();
 
-    const elementName = getJsxElementName(path.node.openingElement);
+    const elementName = jsxElementName;
     const isInternal = INTERNAL_COMPONENTS.includes(elementName);
     const props = path.node.openingElement.attributes as t.JSXAttribute[];
     const originalForceStatic = forceStatic;
@@ -854,7 +862,7 @@ export function handleJsxElement(
         staticProps.properties.push(createObjectProperty("children", t.arrayExpression(childrenExpressions)));
         const index = staticProps.properties.findIndex((item) => t.isObjectProperty(item) && t.isIdentifier(item.key, {name: "key"}));
         let key: t.Expression
-        if (index!==-1) {
+        if (index !== -1) {
             key = (staticProps.properties[index] as t.ObjectProperty).value as t.Identifier;
             staticProps.properties.splice(index, 1)
         } else {
@@ -974,6 +982,138 @@ export function handleJsxElement(
     return {expression: elementVariable, statements};
 }
 
+
+/**
+ * Handle JSX Fragments - these are special elements that don't create a DOM node
+ * but just return their children directly
+ */
+function handleFragment(
+    path: NodePath<t.JSXElement>,
+    funcState: FunctionScope,
+    parentVariable?: t.Identifier,
+    forceStatic = false
+): JsxResult {
+    // For fragments, we create a special component container that will hold all children
+    // but won't create an actual DOM element
+    const isInReturnStatement = path.parentPath && path.parentPath.isReturnStatement();
+    const isVariable = path.parentPath.isVariableDeclarator();
+
+    let containerVariable: t.Identifier;
+    if (isVariable) {
+        containerVariable = (path.parentPath.node as t.VariableDeclarator).id as t.Identifier;
+    } else {
+        containerVariable = path.scope.generateUidIdentifier(parentVariable ? "fragment" : "parent");
+    }
+
+    // Process children
+    const childrenResults: JsxResult[] = [];
+    const statements: t.Statement[] = [];
+
+    // Create a component container for the fragment
+    const createCall = t.callExpression(
+        t.identifier("createElement"),
+        [t.stringLiteral('component'), t.objectExpression([])]
+    );
+
+    statements.push(
+        t.variableDeclaration('const', [t.variableDeclarator(containerVariable, createCall)])
+    );
+
+    // Process all children
+    path.node.children.forEach((child, index) => {
+        if (t.isJSXElement(child)) {
+            const childPath = path.get('children')[index] as NodePath<t.JSXElement>;
+            const result = handleJsxElement(childPath, funcState, containerVariable, forceStatic);
+            childrenResults.push(result);
+        } else if (t.isJSXText(child)) {
+            const text = child.value.trim();
+            if (text) {
+                childrenResults.push({expression: t.stringLiteral(text), statements: []});
+            }
+        } else if (t.isJSXExpressionContainer(child)) {
+            const exp = child.expression;
+            if (t.isJSXEmptyExpression(exp)) {
+                // Handle empty expression by using an empty string literal
+                childrenResults.push({expression: t.stringLiteral(""), statements: []});
+            } else if (t.isCallExpression(exp) && isMapExpression(exp)) {
+                const mapParent = path.scope.generateUidIdentifier("mapParent");
+                const mapInfo = extractMapInfo(exp as t.CallExpression, funcState, path);
+                if (mapInfo) {
+                    const createCall = t.callExpression(t.identifier("createElement"), [t.stringLiteral('component'), t.objectExpression([])]);
+                    const declaration = t.variableDeclaration('const', [
+                        t.variableDeclarator(mapParent, createCall)
+                    ]);
+                    const mapHandler = createMapHandler(mapInfo, path.get('children')[index], funcState, mapParent, path);
+                    const mapStatements = [declaration, mapHandler];
+                    childrenResults.push({expression: mapParent, statements: mapStatements});
+                }
+            } else if (t.isLogicalExpression(exp) || t.isConditionalExpression(exp)) {
+                // Handle logical and conditional expressions
+                const expressionStatements = handleJsxExpression(
+                    path.get(`children.${index}`) as NodePath<t.JSXExpressionContainer>,
+                    funcState,
+                    containerVariable,
+                    false
+                );
+                childrenResults.push({expression: null, ...expressionStatements});
+            } else {
+                const variables = containsStateGetterCall(exp, funcState);
+                if (variables && !forceStatic) {
+                    const expressionStatements = handleJsxExpression(
+                        path.get(`children.${index}`) as NodePath<t.JSXExpressionContainer>,
+                        funcState,
+                        containerVariable,
+                        false
+                    );
+                    childrenResults.push({expression: null, ...expressionStatements});
+                } else {
+                    const result: JsxResult = {expression: exp, statements: []};
+                    if (variables) {
+                        result.deps = [t.identifier(variables)];
+                    }
+                    childrenResults.push(result);
+                }
+            }
+        }
+    });
+
+    // Add all child statements and expressions to the fragment container
+    childrenResults.forEach(result => {
+        statements.push(...result.statements);
+        if (result.expression) {
+            const method = t.isObjectExpression(result.expression) ? "addStaticChild" : "addChild";
+            const addCall = t.callExpression(
+                t.memberExpression(containerVariable, t.identifier(method)),
+                [result.expression]
+            );
+            statements.push(t.expressionStatement(addCall));
+        }
+    });
+
+    // Handle different parent contexts
+    if (isInReturnStatement) {
+        const endCall = t.expressionStatement(t.callExpression(t.identifier("endComponent"), []));
+        const parent = path.findParent(p => p.isFunction());
+        if (parent) statements.push(endCall);
+        statements.push(t.returnStatement(containerVariable));
+        path.parentPath.replaceWith(t.blockStatement(statements));
+        return {expression: null, statements: []};
+    } else if (parentVariable) {
+        // If we have a parent, add all children to the parent instead of the fragment container
+        // This effectively "unwraps" the fragment
+        const insertChildrenCall = t.callExpression(
+            t.memberExpression(parentVariable, t.identifier('insertChildren')),
+            [containerVariable]
+        );
+        statements.push(t.expressionStatement(insertChildrenCall));
+        return {expression: null, statements};
+    } else if (isVariable) {
+        path.parentPath.parentPath?.replaceWithMultiple(statements);
+        return {expression: null, statements: []};
+    }
+
+    return {expression: containerVariable, statements};
+}
 
 function findAvailableVariables(node: t.Node, functionScope: FunctionScope, path: NodePath): string[] {
     if (functionScope.variables.size === 0) {

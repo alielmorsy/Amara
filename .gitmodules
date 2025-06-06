@@ -1,3 +1,6 @@
-[submodule "external/Masharif"]
-	path = external/Masharif
+[submodule "Amara/external/Masharif"]
+	path = Amara/external/Masharif
 	url = https://github.com/alielmorsy/Masharif.git
+[submodule "Amara/external/hermes"]
+	path = Amara/external/hermes
+	url = https://github.com/facebook/hermes
