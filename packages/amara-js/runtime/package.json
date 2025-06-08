@@ -1,0 +1,10 @@
+{
+  "name": "@amara/runtime",
+  "version": "1.0.0",
+  "dependencies": {
+    "@amara/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@amara/platform-web": "workspace:*"
+  }
+}

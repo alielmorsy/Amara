@@ -1,0 +1,18 @@
+{
+  "name": "@amara/cpp",
+  "version": "1.0.0",
+  "description": "Amara C++ native backend (placeholder)",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Building C++ backend...' && npm run build:cmake",
+    "build:cmake": "echo 'CMake build would go here'",
+    "build:wasm": "echo 'WASM build would go here'",
+    "dev": "echo 'C++ dev mode'",
+    "type-check": "echo 'C++ type check (placeholder)'",
+    "test": "echo 'C++ tests would go here'",
+    "clean": "echo 'Cleaning C++ build artifacts'"
+  },
+  "devDependencies": {
+    "cmake-js": "^7.2.1"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "rootDirs": [
+      "./src",
+      "./runtime"
+    ],
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@amara-js/core": ["src/index.ts"],
+      "@amara-js/runtime": ["src/runtime/index.ts"],
+      "@amara-js/web": ["src/runtime/web/index.ts"],
+      "@amara-js/native": ["src/runtime/native/index.ts"]
+    },
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2018",
+    "module": "esnext",
+    "lib": ["es2018", "dom"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "@emotion/react",
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": [
+    "src/**/*",
+    "runtime/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/*.d.ts"
+  ]
+}

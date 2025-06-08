@@ -1,19 +1,40 @@
 {
-  "name": "@your-scope/amara",
+  "name": "@amara-jsx-transform",
   "version": "1.0.0",
-  "description": "A JSX transformer and utility library for modern JavaScript tooling.",
+  "description": "JSX transformation plugin for Amara",
   "main": "dist/index.js",
-  "module": "dist/index.esm.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "bin": {
+    "amara-jsx": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./babel": {
+      "import": "./dist/babel.mjs",
+      "require": "./dist/babel.js",
+      "types": "./dist/babel.d.ts"
+    },
+    "./vite": {
+      "import": "./dist/vite.mjs",
+      "require": "./dist/vite.js",
+      "types": "./dist/vite.d.ts"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
-    "build": "rollup -c --bundleConfigAsCjs",
-    "dev": "nodemon --watch src --exec yarn build",
-    "test": "yarn build && jest",
-    "test:watch": "yarn build && jest --watch",
-    "test:coverage": "yarn build && jest --coverage"
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "clean": "rimraf dist .tsbuildinfo"
   },
   "dependencies": {
     "jsx": "^0.9.89"
@@ -36,27 +57,22 @@
     "babel-jest": "^29.5.0",
     "jest": "^29.5.0",
     "nodemon": "^3.1.9",
-    "rollup": "^4.40.0",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.2",
     "tslib": "^2.8.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@amara/js": "workspace:*",
+    "tsup": "^8.0.1",
+    "rimraf": "^5.0.5"
   },
   "peerDependencies": {
-    "react": "^18.0.0 || ^17.0.0"
+    "@amara/js": "workspace:*"
   },
-  "resolutions": {
-    "@babel/core": "^7.26.10",
-    "@babel/generator": "^7.26.10"
+  "publishConfig": {
+    "access": "public"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/alielmorsy/Aamara.git"
-  },
-  "bugs": {
-    "url": "https://github.com/alielmorsy/Aamara/issues"
-  },
-  "homepage": "https://github.com/alielmorsy/Aamara#readme",
+  "author": "Ali Elmorsy <ali.elmorsy19@gmail.com>",
+  "license": "MIT",
   "keywords": [
     "jsx",
     "babel",
@@ -64,8 +80,5 @@
     "compiler",
     "plugin",
     "amara"
-  ],
-  "author": "Ali Elmorsy <ali.elmorsy19@gmail.com>",
-  "license": "MIT",
-  "packageManager": "yarn@1.22.22"
+  ]
 }

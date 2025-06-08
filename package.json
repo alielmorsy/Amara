@@ -1,0 +1,25 @@
+{
+  "name": "@amara-js",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "build:js": "turbo run build --filter='@amara/js'",
+    "build:jsx": "turbo run build --filter='@amara-jsx-transform'",
+    "build:cli": "turbo run build --filter='@amara/cli'",
+    "dev": "turbo run dev --parallel",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules/.cache",
+    "type-check": "turbo run type-check"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "turbo": "^1.11.2",
+    "typescript": "^5.3.3",
+    "tsup": "^8.0.1",
+    "vitest": "^1.1.0",
+    "@types/node": "^20.10.6",
+    "rimraf": "^5.0.5"
+  },
+  "packageManager": "pnpm@7.33.6+sha512.90e27fd38047f18583f3342f784cc3f187f4d4caac89ebc1fffae18dcd7b2dde7678a0bf237481bcb8f7e8e66135fa34803856e4eb2c442ce082ffab5d9d241f"
+}
